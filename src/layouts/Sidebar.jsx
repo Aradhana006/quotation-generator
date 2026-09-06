@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 const navItems = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/quotations', label: 'Quotations' },
-  { to: '/quotations/new', label: 'Create Quotation' },
+  { to: '/quotations/create', label: 'Create Quotation' },
   { to: '/customers', label: 'Customers' },
   { to: '/templates', label: 'Templates' },
   { to: '/settings/company', label: 'Company Settings' },
