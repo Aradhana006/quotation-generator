@@ -1,13 +1,26 @@
 import PageContainer from '../components/PageContainer'
-import PlaceholderPanel from '../components/PlaceholderPanel'
+import CompanyProfileForm from '../components/company/CompanyProfileForm'
+import { useAppData } from '../context/AppDataContext'
 
 function CompanySettings() {
+  const {
+    companyProfile,
+    updateCompanyProfile,
+    updateCompanyBankField,
+    updateCompanySignatoryField,
+  } = useAppData()
+
   return (
     <PageContainer
       title="Company Settings"
-      description="Configure your business details, branding, and bank information."
+      description="Manage your reusable company profile used across quotations."
     >
-      <PlaceholderPanel message="Company settings form will go here." />
+      <CompanyProfileForm
+        profile={companyProfile}
+        onProfileChange={updateCompanyProfile}
+        onBankChange={updateCompanyBankField}
+        onSignatoryChange={updateCompanySignatoryField}
+      />
     </PageContainer>
   )
 }

@@ -5,6 +5,7 @@ import CreateQuotation from './pages/CreateQuotation'
 import Customers from './pages/Customers'
 import Dashboard from './pages/Dashboard'
 import NotFound from './pages/NotFound'
+import Products from './pages/Products'
 import QuoteDetails from './pages/QuoteDetails'
 import Quotations from './pages/Quotations'
 import Templates from './pages/Templates'
@@ -16,8 +17,10 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="quotations" element={<Quotations />} />
         <Route path="quotations/create" element={<CreateQuotation />} />
+        <Route path="quotations/:id/edit" element={<CreateQuotation />} />
         <Route path="quotations/:id" element={<QuoteDetails />} />
         <Route path="customers" element={<Customers />} />
+        <Route path="products" element={<Products />} />
         <Route path="templates" element={<Templates />} />
         <Route path="settings/company" element={<CompanySettings />} />
       </Route>

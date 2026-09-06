@@ -5,6 +5,7 @@ const navItems = [
   { to: '/quotations', label: 'Quotations' },
   { to: '/quotations/create', label: 'Create Quotation' },
   { to: '/customers', label: 'Customers' },
+  { to: '/products', label: 'Products & Services' },
   { to: '/templates', label: 'Templates' },
   { to: '/settings/company', label: 'Company Settings' },
 ]
