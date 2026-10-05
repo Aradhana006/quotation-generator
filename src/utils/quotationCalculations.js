@@ -1,4 +1,4 @@
-export const QUOTATION_STATUSES = ['draft', 'sent', 'accepted', 'rejected', 'expired']
+export const QUOTATION_STATUSES = ['draft', 'sent', 'accepted', 'rejected', 'expired', 'cancelled']
 
 export const STATUS_LABELS = {
   draft: 'Draft',
@@ -6,6 +6,7 @@ export const STATUS_LABELS = {
   accepted: 'Accepted',
   rejected: 'Rejected',
   expired: 'Expired',
+  cancelled: 'Cancelled',
 }
 
 export const DEFAULT_TERMS_LIBRARY = [

@@ -23,7 +23,6 @@ function AdditionalCharges({ charges, onChargeChange, onAddCharge, onRemoveCharg
                 type="text"
                 value={charge.name}
                 onChange={(event) => onChargeChange(charge.id, 'name', event.target.value)}
-                placeholder="Shipping / Installation"
                 className={inputClassName}
               />
             </div>

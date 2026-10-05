@@ -1,7 +1,7 @@
 import FormSection from './FormSection'
 import { formatCurrency } from '../../utils/quotationCalculations'
 
-function PricingSummary({ summary, currency = 'INR' }) {
+function PricingSummary({ summary, currency = 'INR', compact = false }) {
   const {
     grossAmount,
     totalDiscount,
@@ -23,6 +23,7 @@ function PricingSummary({ summary, currency = 'INR' }) {
     <FormSection
       title="Pricing Summary"
       description="Totals are calculated from items and additional charges."
+      compact={compact}
     >
       <div className="space-y-3">
         {rows.map((row) => {

@@ -2,12 +2,12 @@ import FormSection from './FormSection'
 import { inputClassName, labelClassName } from './formStyles'
 
 const fields = [
-  { id: 'name', label: 'Company Name', type: 'text', placeholder: 'ABC Company' },
-  { id: 'address', label: 'Address', type: 'textarea', placeholder: 'Street, city, state, postal code', fullWidth: true },
-  { id: 'phone', label: 'Phone', type: 'tel', placeholder: '+91 98765 43210' },
-  { id: 'email', label: 'Email', type: 'email', placeholder: 'info@company.com' },
-  { id: 'website', label: 'Website', type: 'text', placeholder: 'www.company.com' },
-  { id: 'gstin', label: 'GSTIN', type: 'text', placeholder: '29ABCDE1234F1Z5' },
+  { id: 'name', label: 'Company Name', type: 'text' },
+  { id: 'address', label: 'Address', type: 'textarea', fullWidth: true },
+  { id: 'phone', label: 'Phone', type: 'tel' },
+  { id: 'email', label: 'Email', type: 'email' },
+  { id: 'website', label: 'Website', type: 'text' },
+  { id: 'gstin', label: 'GSTIN', type: 'text' },
 ]
 
 function CompanyDetails({ company, onChange }) {
@@ -43,7 +43,6 @@ function CompanyDetails({ company, onChange }) {
             name: field.id,
             value: company[field.id],
             onChange: handleChange(field.id),
-            placeholder: field.placeholder,
             className: inputClassName,
           }
 
@@ -82,9 +81,7 @@ function CompanyDetails({ company, onChange }) {
               className="mt-3 h-16 w-auto rounded border border-slate-200 bg-white object-contain p-2"
             />
           ) : (
-            <p className="mt-2 text-sm text-slate-500">
-              Logo upload placeholder — image will appear in the preview.
-            </p>
+            <p className="mt-2 text-sm text-slate-500">Optional. Appears on quotations and PDFs.</p>
           )}
         </div>
       </div>

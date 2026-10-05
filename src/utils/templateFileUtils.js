@@ -7,7 +7,8 @@ export function formatFileSize(bytes) {
 }
 
 export function isSupportedTemplateFile(file) {
-  return SUPPORTED_TEMPLATE_FORMATS.includes(file.type)
+  if (SUPPORTED_TEMPLATE_FORMATS.includes(file.type)) return true
+  return /\.(pdf|png|jpe?g|docx)$/i.test(file.name || '')
 }
 
 export function isImageFile(fileType) {

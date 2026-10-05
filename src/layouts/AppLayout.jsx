@@ -4,7 +4,7 @@ import Sidebar from './Sidebar'
 
 function AppLayout() {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-[#f4f7f8]">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />

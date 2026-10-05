@@ -1,0 +1,77 @@
+export const MODERN_THEME = {
+  name: 'modern',
+  margin: 54,
+  sectionSize: 11,
+  sectionUnderline: 1.2,
+  stripedRows: true,
+  cellBorders: false,
+  fonts: {
+    heading: 'Helvetica-Bold',
+    body: 'Helvetica',
+  },
+  colors: {
+    text: '#0f172a',
+    heading: '#0f172a',
+    muted: '#64748b',
+    line: '#e2e8f0',
+    accent: '#0f766e',
+    headerBg: '#ffffff',
+    tableHeaderBg: '#0f172a',
+    tableHeaderText: '#ffffff',
+    stripe: '#f8fafc',
+    totalBg: '#0f172a',
+    totalText: '#ffffff',
+  },
+}
+
+export const PROFESSIONAL_THEME = {
+  name: 'professional',
+  margin: 44,
+  sectionSize: 9,
+  sectionUnderline: 1.6,
+  stripedRows: false,
+  cellBorders: true,
+  fonts: {
+    heading: 'Helvetica-Bold',
+    body: 'Helvetica',
+  },
+  colors: {
+    text: '#1e293b',
+    heading: '#0b1f3a',
+    muted: '#475569',
+    line: '#94a3b8',
+    accent: '#0b1f3a',
+    headerBg: '#0b1f3a',
+    tableHeaderBg: '#0b1f3a',
+    tableHeaderText: '#ffffff',
+    stripe: '#f1f5f9',
+    totalBg: '#0b1f3a',
+    totalText: '#ffffff',
+  },
+}
+
+export const CLASSIC_THEME = {
+  name: 'classic',
+  margin: 40,
+  sectionSize: 10,
+  sectionUnderline: 0,
+  stripedRows: false,
+  cellBorders: true,
+  fonts: {
+    heading: 'Times-Bold',
+    body: 'Times-Roman',
+  },
+  colors: {
+    text: '#1c1917',
+    heading: '#44403c',
+    muted: '#57534e',
+    line: '#78716c',
+    accent: '#78716c',
+    headerBg: '#ffffff',
+    tableHeaderBg: '#e7e5e4',
+    tableHeaderText: '#1c1917',
+    stripe: '#fafaf9',
+    totalBg: '#44403c',
+    totalText: '#ffffff',
+  },
+}

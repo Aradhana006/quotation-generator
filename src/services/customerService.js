@@ -1,50 +1,29 @@
 /**
  * Customer master data service.
  *
- * Future: GET/POST/PUT/DELETE /api/customers
+ * Architecture:
+ *   Customers page → customerService → HTTP API → Express → PostgreSQL
  */
 
-import { STORAGE_KEYS } from '../data/defaults.js'
-import { createSavedCustomer } from '../utils/dataMappers.js'
-import { generateId, readStorage, writeStorage } from './storageAdapter.js'
+import { API_ENDPOINTS } from '../config/api.js'
+import { apiClient } from './apiClient.js'
 
-function getAll() {
-  return readStorage(STORAGE_KEYS.customers, [])
+export async function getCustomers() {
+  return apiClient.get(API_ENDPOINTS.customers)
 }
 
-function saveAll(customers) {
-  writeStorage(STORAGE_KEYS.customers, customers)
+export async function getCustomerById(id) {
+  return apiClient.get(`${API_ENDPOINTS.customers}/${id}`)
 }
 
-export function getCustomers() {
-  // Future: return apiClient.get('/customers')
-  return getAll()
+export async function createCustomer(customerData) {
+  return apiClient.post(API_ENDPOINTS.customers, customerData)
 }
 
-export function getCustomerById(id) {
-  // Future: return apiClient.get(`/customers/${id}`)
-  return getAll().find((customer) => customer.id === id) || null
+export async function updateCustomer(id, customerData) {
+  return apiClient.put(`${API_ENDPOINTS.customers}/${id}`, customerData)
 }
 
-export function createCustomer(customerData) {
-  // Future: return apiClient.post('/customers', customerData)
-  const customer = createSavedCustomer(customerData)
-  saveAll([...getAll(), customer])
-  return customer
+export async function deleteCustomer(id) {
+  return apiClient.delete(`${API_ENDPOINTS.customers}/${id}`)
 }
-
-export function updateCustomer(id, customerData) {
-  // Future: return apiClient.put(`/customers/${id}`, customerData)
-  const updated = getAll().map((customer) =>
-    customer.id === id ? { ...customer, ...customerData, id } : customer,
-  )
-  saveAll(updated)
-  return updated.find((customer) => customer.id === id) || null
-}
-
-export function deleteCustomer(id) {
-  // Future: return apiClient.delete(`/customers/${id}`)
-  saveAll(getAll().filter((customer) => customer.id !== id))
-}
-
-export { generateId }

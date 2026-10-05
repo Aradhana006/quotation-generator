@@ -2,16 +2,16 @@ import FormSection from './FormSection'
 import { inputClassName, labelClassName } from './formStyles'
 
 const fields = [
-  { id: 'greeting', label: 'Greeting', type: 'text', placeholder: 'Dear Sir,' },
-  { id: 'kindAttention', label: 'Kind Attention', type: 'text', placeholder: 'Mr. Karthik - CEO' },
-  { id: 'subject', label: 'Subject', type: 'text', placeholder: 'Quotation for Edge Devices', fullWidth: true },
-  { id: 'message', label: 'Message', type: 'textarea', placeholder: 'Thank you for your enquiry...', fullWidth: true },
-  { id: 'closing', label: 'Closing', type: 'text', placeholder: 'Thanking you,' },
-  { id: 'signOffCompany', label: 'Sign-off Company', type: 'text', placeholder: 'For ABC Company' },
-  { id: 'signOffTitle', label: 'Sign-off Title', type: 'text', placeholder: 'Authorised Signatory' },
+  { id: 'greeting', label: 'Greeting', type: 'text' },
+  { id: 'kindAttention', label: 'Kind Attention', type: 'text' },
+  { id: 'subject', label: 'Subject', type: 'text', fullWidth: true },
+  { id: 'message', label: 'Message', type: 'textarea', fullWidth: true },
+  { id: 'closing', label: 'Closing', type: 'text' },
+  { id: 'signOffCompany', label: 'Sign-off Company', type: 'text' },
+  { id: 'signOffTitle', label: 'Sign-off Title', type: 'text' },
 ]
 
-function CoverLetter({ coverLetter, onChange }) {
+function CoverLetter({ coverLetter, onChange, bare = false }) {
   function handleToggle(event) {
     onChange('enabled', event.target.checked)
   }
@@ -22,11 +22,8 @@ function CoverLetter({ coverLetter, onChange }) {
     }
   }
 
-  return (
-    <FormSection
-      title="Cover Letter"
-      description="Optional introductory letter shown as the first page."
-    >
+  const fieldsContent = (
+    <>
       <label className="mb-4 flex items-center gap-2 text-sm text-slate-700">
         <input
           type="checkbox"
@@ -45,7 +42,6 @@ function CoverLetter({ coverLetter, onChange }) {
               name: field.id,
               value: coverLetter[field.id],
               onChange: handleChange(field.id),
-              placeholder: field.placeholder,
               className: inputClassName,
             }
 
@@ -67,6 +63,19 @@ function CoverLetter({ coverLetter, onChange }) {
           })}
         </div>
       )}
+    </>
+  )
+
+  if (bare) {
+    return fieldsContent
+  }
+
+  return (
+    <FormSection
+      title="Cover Letter"
+      description="Optional introductory letter shown as the first page."
+    >
+      {fieldsContent}
     </FormSection>
   )
 }

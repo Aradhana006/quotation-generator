@@ -1,61 +1,117 @@
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { DEFAULT_SELECTED_TEMPLATE } from '../data/builtInTemplates'
-import { useLocalStorage } from '../hooks/useLocalStorage'
+import { DEFAULT_TERMS_LIBRARY } from '../utils/quotationCalculations'
+import { useAuth } from './AuthContext'
 import * as quotationService from '../services/quotationService.js'
 import * as termService from '../services/termService.js'
-import { STORAGE_KEYS } from '../data/defaults'
 
 const QuotationContext = createContext(null)
 
 export function QuotationProvider({ children }) {
-  const [quotations, setQuotations] = useLocalStorage(STORAGE_KEYS.quotations, [])
-  const [defaultTermsLibrary, setDefaultTermsLibrary] = useLocalStorage(
-    STORAGE_KEYS.defaultTermsLibrary,
-    termService.getDefaultTermsLibrary(),
-  )
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
 
-  function saveQuotation(quotationData) {
-    const saved = quotationService.saveQuotation(quotationData)
-    setQuotations(quotationService.getQuotations())
-    return saved
-  }
+  const [defaultTermsLibrary, setDefaultTermsLibrary] = useState(DEFAULT_TERMS_LIBRARY)
+  const [termsLoading, setTermsLoading] = useState(true)
 
-  function deleteQuotation(id) {
-    quotationService.deleteQuotation(id)
-    setQuotations(quotationService.getQuotations())
-  }
-
-  function getQuotationById(id) {
-    return quotations.find((quotation) => quotation.id === id) || null
-  }
-
-  function duplicateQuotation(id) {
-    const duplicate = quotationService.duplicateQuotation(id)
-    if (duplicate) {
-      setQuotations(quotationService.getQuotations())
+  const refreshDefaultTerms = useCallback(async () => {
+    setTermsLoading(true)
+    try {
+      const terms = await termService.getDefaultTermsLibrary()
+      setDefaultTermsLibrary(terms)
+    } catch {
+      setDefaultTermsLibrary(DEFAULT_TERMS_LIBRARY)
+    } finally {
+      setTermsLoading(false)
     }
-    return duplicate
+  }, [])
+
+  useEffect(() => {
+    if (authLoading) return
+
+    if (!isAuthenticated) {
+      setDefaultTermsLibrary(DEFAULT_TERMS_LIBRARY)
+      setTermsLoading(false)
+      return
+    }
+
+    refreshDefaultTerms()
+  }, [isAuthenticated, authLoading, refreshDefaultTerms])
+
+  async function createQuotation(quotationData) {
+    return quotationService.createQuotation(quotationData)
   }
 
-  function updateQuotationStatus(id, status) {
-    quotationService.updateQuotationStatus(id, status)
-    setQuotations(quotationService.getQuotations())
+  async function updateQuotation(id, quotationData) {
+    return quotationService.updateQuotation(id, quotationData)
+  }
+
+  async function deleteQuotation(id) {
+    return quotationService.deleteQuotation(id)
+  }
+
+  function getQuotationById() {
+    return null
+  }
+
+  async function fetchQuotationById(id) {
+    try {
+      return await quotationService.getQuotation(id)
+    } catch {
+      return null
+    }
+  }
+
+  async function duplicateQuotation(id) {
+    return quotationService.duplicateQuotation(id)
+  }
+
+  async function updateQuotationStatus(id, status) {
+    return quotationService.updateQuotationStatus(id, status)
+  }
+
+  async function reviseQuotation(id) {
+    return quotationService.reviseQuotation(id)
+  }
+
+  async function archiveQuotation(id) {
+    return quotationService.archiveQuotation(id)
+  }
+
+  async function restoreQuotation(id) {
+    return quotationService.restoreQuotation(id)
+  }
+
+  async function generateQuotationNumber(excludeId = null) {
+    return quotationService.generateNextQuotationNumber(excludeId)
+  }
+
+  async function saveDefaultTermsLibrary(terms) {
+    const saved = await termService.saveDefaultTermsLibrary(terms)
+    setDefaultTermsLibrary(saved)
+    return saved
   }
 
   const value = useMemo(
     () => ({
-      quotations,
+      quotations: [],
+      quotationsLoading: false,
+      quotationsError: '',
       defaultTermsLibrary,
-      setDefaultTermsLibrary,
-      saveQuotation,
+      termsLoading,
+      setDefaultTermsLibrary: saveDefaultTermsLibrary,
+      createQuotation,
+      updateQuotation,
       deleteQuotation,
       getQuotationById,
+      fetchQuotationById,
       duplicateQuotation,
       updateQuotationStatus,
-      generateQuotationNumber: (excludeId) =>
-        quotationService.generateNextQuotationNumber(excludeId),
+      reviseQuotation,
+      archiveQuotation,
+      restoreQuotation,
+      generateQuotationNumber,
     }),
-    [quotations, defaultTermsLibrary],
+    [defaultTermsLibrary, termsLoading],
   )
 
   return (

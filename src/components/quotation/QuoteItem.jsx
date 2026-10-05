@@ -56,7 +56,6 @@ function QuoteItem({
             type="text"
             value={item.description}
             onChange={handleChange('description')}
-            placeholder="Product or service description"
             className={`${inputClassName} ${errors.description ? 'border-red-400' : ''}`}
           />
           {errors.description && (
@@ -73,7 +72,6 @@ function QuoteItem({
             rows={2}
             value={item.specification}
             onChange={handleChange('specification')}
-            placeholder="Optional specifications"
             className={inputClassName}
           />
         </div>
@@ -87,7 +85,6 @@ function QuoteItem({
             type="text"
             value={item.unit}
             onChange={handleChange('unit')}
-            placeholder="Nos / Project"
             className={inputClassName}
           />
         </div>
@@ -155,7 +152,6 @@ function QuoteItem({
             step="0.01"
             value={item.discountValue}
             onChange={handleChange('discountValue')}
-            placeholder={item.discountType === 'percentage' ? '10' : '1000'}
             className={inputClassName}
           />
         </div>

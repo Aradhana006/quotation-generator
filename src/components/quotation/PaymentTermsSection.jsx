@@ -10,7 +10,6 @@ function PaymentTermsSection({ paymentTerms, onChange }) {
         rows={3}
         value={paymentTerms}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="100% advance along with purchase order."
         className={inputClassName}
       />
     </FormSection>

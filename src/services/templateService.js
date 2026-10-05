@@ -1,41 +1,39 @@
 /**
- * Template service — custom templates only (built-in templates are code-defined).
- *
- * Future: GET/POST/PUT/DELETE /api/templates
+ * Template service.
+ * Built-in templates come from the API as metadata only.
+ * Custom templates are uploaded as multipart/form-data (not JSON)
+ * so the binary file can travel with the name field.
  */
 
-import { STORAGE_KEYS } from '../data/defaults.js'
-import { readStorage, writeStorage } from './storageAdapter.js'
+import { API_ENDPOINTS } from '../config/api.js'
+import { apiClient } from './apiClient.js'
 
-function getAll() {
-  return readStorage(STORAGE_KEYS.customTemplates, [])
+export async function getTemplates() {
+  return apiClient.get(API_ENDPOINTS.templates)
 }
 
-function saveAll(templates) {
-  writeStorage(STORAGE_KEYS.customTemplates, templates)
+export async function getTemplate(id) {
+  return apiClient.get(`${API_ENDPOINTS.templates}/${id}`)
 }
 
-export function getCustomTemplates() {
-  // Future: return apiClient.get('/templates')
-  return getAll()
+export async function createTemplate(name, file, onProgress) {
+  const formData = new FormData()
+  formData.append('name', name)
+  formData.append('file', file)
+  return apiClient.postForm(API_ENDPOINTS.templates, formData, onProgress)
 }
 
-export function getCustomTemplateById(id) {
-  // Future: return apiClient.get(`/templates/${id}`)
-  return getAll().find((template) => template.id === id) || null
+export async function updateTemplate(id, { name, file }, onProgress) {
+  const formData = new FormData()
+  if (name) formData.append('name', name)
+  if (file) formData.append('file', file)
+  return apiClient.putForm(`${API_ENDPOINTS.templates}/${id}`, formData, onProgress)
 }
 
-export function createCustomTemplate(template) {
-  // Future: return apiClient.post('/templates', template)
-  saveAll([...getAll(), template])
-  return template
+export async function updateTemplateConfiguration(id, configuration) {
+  return apiClient.put(`${API_ENDPOINTS.templates}/${id}`, { configuration })
 }
 
-export function deleteCustomTemplate(id) {
-  // Future: return apiClient.delete(`/templates/${id}`)
-  saveAll(getAll().filter((template) => template.id !== id))
-}
-
-export function saveCustomTemplates(templates) {
-  saveAll(templates)
+export async function deleteTemplate(id) {
+  return apiClient.delete(`${API_ENDPOINTS.templates}/${id}`)
 }

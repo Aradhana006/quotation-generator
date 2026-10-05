@@ -24,6 +24,10 @@ export const DEFAULT_SELECTED_TEMPLATE = {
   id: 'modern',
 }
 
+export function getBuiltInTemplate(id) {
+  return BUILT_IN_TEMPLATES.find((template) => template.id === id) || null
+}
+
 export const SUPPORTED_TEMPLATE_FORMATS = [
   'application/pdf',
   'image/png',

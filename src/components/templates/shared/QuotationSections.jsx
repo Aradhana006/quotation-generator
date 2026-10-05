@@ -107,7 +107,8 @@ export function ItemsTable({ items, currency = 'INR', compact = false }) {
   }
 
   return (
-    <table className={`mb-6 w-full border-collapse text-sm ${compact ? 'text-xs' : ''}`}>
+    <div className="mb-6 overflow-x-auto">
+    <table className={`w-full min-w-[640px] border-collapse text-sm ${compact ? 'text-xs' : ''}`}>
       <thead>
         <tr className="border-b text-left">
           <th className="pb-2 pr-3 font-semibold">Description</th>
@@ -121,8 +122,8 @@ export function ItemsTable({ items, currency = 'INR', compact = false }) {
         </tr>
       </thead>
       <tbody>
-        {items.map((item) => (
-          <tr key={item.id} className="border-b align-top">
+        {items.map((item, index) => (
+          <tr key={item.id || `${item.description}-${index}`} className="border-b align-top">
             <td className="py-2 pr-3">{item.description || '—'}</td>
             <td className="py-2 pr-3 whitespace-pre-line">{item.specification || '—'}</td>
             <td className="py-2 pr-3">{item.unit || '—'}</td>
@@ -135,6 +136,7 @@ export function ItemsTable({ items, currency = 'INR', compact = false }) {
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
 

@@ -17,6 +17,9 @@ function QuotePreview({ quotationData, selectedTemplate, customTemplates }) {
         </p>
         <h2 className="mt-1 text-lg font-semibold text-slate-900">Quotation Preview</h2>
         <p className="mt-1 text-sm text-slate-500">Template: {templateLabel}</p>
+        <p className="mt-1 text-xs text-slate-400">
+          On-screen preview. Download PDF generates the document from the saved quotation.
+        </p>
       </div>
 
       <div className="max-h-[calc(100vh-8rem)] overflow-auto bg-slate-100 p-4">

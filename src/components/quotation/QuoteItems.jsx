@@ -5,6 +5,7 @@ import { inputClassName } from './formStyles'
 function QuoteItems({
   items,
   products,
+  productsLoading = false,
   onItemChange,
   onAddItem,
   onAddProductItem,
@@ -24,14 +25,18 @@ function QuoteItems({
       title="Quotation Items"
       description="Select saved products/services or add custom line items."
     >
-      {products.length === 0 && (
+      {productsLoading && (
+        <p className="mb-4 text-sm text-slate-500">Loading products...</p>
+      )}
+
+      {!productsLoading && products.length === 0 && (
         <p className="mb-4 text-sm text-slate-500">
           No products found. Add products from Products & Services, or add custom items below.
         </p>
       )}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-        {products.length > 0 && (
+        {!productsLoading && products.length > 0 && (
           <div className="flex-1">
             <label htmlFor="selectProduct" className="mb-1 block text-sm font-medium text-slate-700">
               Select Product / Service

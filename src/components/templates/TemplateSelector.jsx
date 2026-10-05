@@ -5,12 +5,82 @@ function TemplateSelector({
   customTemplates,
   onSelectTemplate,
   onAddCustomClick,
+  compact = false,
 }) {
   const builtInCards = [
     { id: 'modern', name: 'Modern', description: 'Minimal and spacious' },
     { id: 'professional', name: 'Professional', description: 'Corporate and structured' },
     { id: 'classic', name: 'Classic', description: 'Traditional and formal' },
   ]
+
+  if (compact) {
+    return (
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/40">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Template</h2>
+            <p className="text-xs text-slate-500">Switch layout without losing your data</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button
+            type="button"
+            onClick={onAddCustomClick}
+            title="Add custom template"
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 text-sm font-medium text-slate-700 transition hover:border-teal-300 hover:bg-teal-50/50"
+          >
+            <span className="text-base leading-none">+</span>
+            Custom
+          </button>
+
+          {builtInCards.map((template) => {
+            const isSelected = templatesMatch(selectedTemplate, {
+              type: 'builtin',
+              id: template.id,
+            })
+
+            return (
+              <button
+                key={template.id}
+                type="button"
+                onClick={() => onSelectTemplate({ type: 'builtin', id: template.id })}
+                className={`h-9 shrink-0 rounded-xl border px-4 text-sm font-medium transition ${
+                  isSelected
+                    ? 'border-teal-700 bg-teal-700 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                {template.name}
+              </button>
+            )
+          })}
+
+          {customTemplates.map((template) => {
+            const isSelected = templatesMatch(selectedTemplate, {
+              type: 'custom',
+              id: template.id,
+            })
+
+            return (
+              <button
+                key={template.id}
+                type="button"
+                onClick={() => onSelectTemplate({ type: 'custom', id: template.id })}
+                className={`h-9 shrink-0 rounded-xl border px-4 text-sm font-medium transition ${
+                  isSelected
+                    ? 'border-teal-700 bg-teal-700 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                }`}
+                title={template.name}
+              >
+                {template.name}
+              </button>
+            )
+          })}        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

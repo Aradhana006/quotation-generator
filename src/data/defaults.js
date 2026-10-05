@@ -40,7 +40,6 @@ export const EMPTY_PRODUCT = {
 
 export const STORAGE_KEYS = {
   companyProfile: 'quotation-generator-company-profile',
-  customers: 'quotation-generator-customers',
   products: 'quotation-generator-products',
   quotations: 'quotation-generator-quotations',
   defaultTermsLibrary: 'quotation-generator-default-terms',

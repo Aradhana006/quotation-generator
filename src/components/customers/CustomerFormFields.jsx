@@ -1,11 +1,11 @@
 import { inputClassName, labelClassName } from '../quotation/formStyles'
 
 const fields = [
-  { id: 'companyName', label: 'Company Name', type: 'text', placeholder: 'ABC Constructions' },
-  { id: 'contactPerson', label: 'Contact Person', type: 'text', placeholder: 'Karthik' },
-  { id: 'email', label: 'Email', type: 'email', placeholder: 'abc@gmail.com' },
-  { id: 'phone', label: 'Phone', type: 'tel', placeholder: '9876543210' },
-  { id: 'address', label: 'Address', type: 'textarea', placeholder: 'Street, city, state', fullWidth: true },
+  { id: 'companyName', label: 'Company Name', type: 'text' },
+  { id: 'contactPerson', label: 'Contact Person', type: 'text' },
+  { id: 'email', label: 'Email', type: 'email' },
+  { id: 'phone', label: 'Phone', type: 'tel' },
+  { id: 'address', label: 'Address', type: 'textarea', fullWidth: true },
 ]
 
 function CustomerFormFields({ customer, onChange }) {
@@ -21,7 +21,6 @@ function CustomerFormFields({ customer, onChange }) {
           name: field.id,
           value: customer[field.id] ?? '',
           onChange: handleChange(field.id),
-          placeholder: field.placeholder,
           className: inputClassName,
         }
 

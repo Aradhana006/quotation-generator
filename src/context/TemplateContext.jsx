@@ -1,33 +1,74 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { DEFAULT_SELECTED_TEMPLATE } from '../data/builtInTemplates'
-import { STORAGE_KEYS } from '../data/defaults'
 import { revokeTemplatePreviewUrl } from '../utils/templateFileUtils'
+import { useAuth } from './AuthContext'
 import * as templateService from '../services/templateService.js'
 
 const TemplateContext = createContext(null)
 
-function loadStoredTemplates() {
-  return templateService.getCustomTemplates()
-}
-
 export function TemplateProvider({ children }) {
-  const [customTemplates, setCustomTemplates] = useState(loadStoredTemplates)
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+
+  const [templates, setTemplates] = useState([])
+  const [templatesLoading, setTemplatesLoading] = useState(true)
+  const [templatesError, setTemplatesError] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_SELECTED_TEMPLATE)
 
-  useEffect(() => {
-    templateService.saveCustomTemplates(customTemplates)
-  }, [customTemplates])
+  const customTemplates = useMemo(
+    () => templates.filter((template) => template.type === 'custom'),
+    [templates],
+  )
 
-  function addCustomTemplate(template) {
-    setCustomTemplates((current) => [...current, template])
+  const refreshTemplates = useCallback(async () => {
+    setTemplatesLoading(true)
+    setTemplatesError('')
+    try {
+      const data = await templateService.getTemplates()
+      setTemplates(data)
+    } catch (error) {
+      setTemplatesError(error.message || 'Unable to load templates.')
+      setTemplates([])
+    } finally {
+      setTemplatesLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (authLoading) return
+
+    if (!isAuthenticated) {
+      setTemplates([])
+      setTemplatesLoading(false)
+      setTemplatesError('')
+      return
+    }
+
+    refreshTemplates()
+  }, [isAuthenticated, authLoading, refreshTemplates])
+
+  async function addCustomTemplate(name, file, onProgress) {
+    const saved = await templateService.createTemplate(name, file, onProgress)
+    await refreshTemplates()
+    return saved
   }
 
-  function deleteCustomTemplate(id) {
-    setCustomTemplates((current) => {
-      const templateToDelete = current.find((item) => item.id === id)
-      revokeTemplatePreviewUrl(templateToDelete)
-      return current.filter((item) => item.id !== id)
-    })
+  async function updateCustomTemplate(id, data, onProgress) {
+    const saved = await templateService.updateTemplate(id, data, onProgress)
+    await refreshTemplates()
+    return saved
+  }
+
+  async function updateTemplateConfiguration(id, configuration) {
+    const saved = await templateService.updateTemplateConfiguration(id, configuration)
+    await refreshTemplates()
+    return saved
+  }
+
+  async function deleteCustomTemplate(id) {
+    const templateToDelete = customTemplates.find((item) => item.id === id)
+    revokeTemplatePreviewUrl(templateToDelete)
+    await templateService.deleteTemplate(id)
+    await refreshTemplates()
 
     setSelectedTemplate((current) => {
       if (current.type === 'custom' && current.id === id) {
@@ -43,13 +84,26 @@ export function TemplateProvider({ children }) {
 
   const value = useMemo(
     () => ({
+      templates,
       customTemplates,
+      templatesLoading,
+      templatesError,
+      refreshTemplates,
       selectedTemplate,
       addCustomTemplate,
+      updateCustomTemplate,
+      updateTemplateConfiguration,
       deleteCustomTemplate,
       selectTemplate,
     }),
-    [customTemplates, selectedTemplate],
+    [
+      templates,
+      customTemplates,
+      templatesLoading,
+      templatesError,
+      refreshTemplates,
+      selectedTemplate,
+    ],
   )
 
   return (

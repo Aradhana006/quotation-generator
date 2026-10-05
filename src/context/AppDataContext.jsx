@@ -1,22 +1,101 @@
-import { createContext, useContext, useMemo } from 'react'
-import {
-  EMPTY_COMPANY_PROFILE,
-  EMPTY_PRODUCT,
-  EMPTY_SAVED_CUSTOMER,
-  STORAGE_KEYS,
-} from '../data/defaults'
-import { useLocalStorage } from '../hooks/useLocalStorage'
-import { createProduct, createSavedCustomer } from '../utils/dataMappers'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { EMPTY_COMPANY_PROFILE, EMPTY_PRODUCT } from '../data/defaults'
+import { useAuth } from './AuthContext'
+import * as companyService from '../services/companyService.js'
+import * as customerService from '../services/customerService.js'
+import * as productService from '../services/productService.js'
 
 const AppDataContext = createContext(null)
 
 export function AppDataProvider({ children }) {
-  const [companyProfile, setCompanyProfile] = useLocalStorage(
-    STORAGE_KEYS.companyProfile,
-    EMPTY_COMPANY_PROFILE,
-  )
-  const [customers, setCustomers] = useLocalStorage(STORAGE_KEYS.customers, [])
-  const [products, setProducts] = useLocalStorage(STORAGE_KEYS.products, [])
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+
+  const [companyProfile, setCompanyProfile] = useState(EMPTY_COMPANY_PROFILE)
+  const [companyLoading, setCompanyLoading] = useState(true)
+  const [companyError, setCompanyError] = useState('')
+
+  const [customers, setCustomers] = useState([])
+  const [customersLoading, setCustomersLoading] = useState(true)
+  const [customersError, setCustomersError] = useState('')
+
+  const [products, setProducts] = useState([])
+  const [productsLoading, setProductsLoading] = useState(true)
+  const [productsError, setProductsError] = useState('')
+
+  const refreshCustomers = useCallback(async () => {
+    setCustomersLoading(true)
+    setCustomersError('')
+    try {
+      const data = await customerService.getCustomers()
+      setCustomers(data)
+    } catch (error) {
+      setCustomersError(error.message || 'Unable to load customers.')
+      setCustomers([])
+    } finally {
+      setCustomersLoading(false)
+    }
+  }, [])
+
+  const refreshProducts = useCallback(async () => {
+    setProductsLoading(true)
+    setProductsError('')
+    try {
+      const data = await productService.getProducts()
+      setProducts(data)
+    } catch (error) {
+      setProductsError(error.message || 'Unable to load products.')
+      setProducts([])
+    } finally {
+      setProductsLoading(false)
+    }
+  }, [])
+
+  const refreshCompanyProfile = useCallback(async () => {
+    setCompanyLoading(true)
+    setCompanyError('')
+    try {
+      const profile = await companyService.getCompanyProfile()
+      setCompanyProfile(profile)
+    } catch (error) {
+      setCompanyError(error.message || 'Unable to load company profile.')
+      setCompanyProfile(EMPTY_COMPANY_PROFILE)
+    } finally {
+      setCompanyLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (authLoading) return
+
+    if (!isAuthenticated) {
+      setCustomers([])
+      setProducts([])
+      setCompanyProfile(EMPTY_COMPANY_PROFILE)
+      setCustomersLoading(false)
+      setProductsLoading(false)
+      setCompanyLoading(false)
+      setCustomersError('')
+      setProductsError('')
+      setCompanyError('')
+      return
+    }
+
+    refreshCustomers()
+    refreshProducts()
+    refreshCompanyProfile()
+  }, [
+    isAuthenticated,
+    authLoading,
+    refreshCustomers,
+    refreshProducts,
+    refreshCompanyProfile,
+  ])
+
+  async function saveCompanyProfile(profile) {
+    const saved = await companyService.saveCompanyProfile(profile)
+    setCompanyProfile(saved)
+    return saved
+  }
 
   function updateCompanyProfile(field, value) {
     setCompanyProfile((current) => ({ ...current, [field]: value }))
@@ -36,67 +115,40 @@ export function AppDataProvider({ children }) {
     }))
   }
 
-  function addCustomer(customerData) {
-    const customer = createSavedCustomer(customerData)
-    setCustomers((current) => [...current, customer])
-    return customer
-  }
-
-  function updateCustomer(id, customerData) {
-    setCustomers((current) =>
-      current.map((customer) =>
-        customer.id === id ? { ...customer, ...customerData, id } : customer,
-      ),
-    )
-  }
-
-  function deleteCustomer(id) {
-    setCustomers((current) => current.filter((customer) => customer.id !== id))
-  }
-
-  function addProduct(productData) {
-    const product = createProduct(productData)
-    setProducts((current) => [...current, product])
-    return product
-  }
-
-  function updateProduct(id, productData) {
-    setProducts((current) =>
-      current.map((product) =>
-        product.id === id
-          ? {
-              ...product,
-              ...productData,
-              id,
-              defaultPrice: Number(productData.defaultPrice) || 0,
-              defaultTax: Number(productData.defaultTax) || 0,
-            }
-          : product,
-      ),
-    )
-  }
-
-  function deleteProduct(id) {
-    setProducts((current) => current.filter((product) => product.id !== id))
-  }
-
   const value = useMemo(
     () => ({
       companyProfile,
+      companyLoading,
+      companyError,
+      saveCompanyProfile,
+      refreshCompanyProfile,
       setCompanyProfile,
       updateCompanyProfile,
       updateCompanyBankField,
       updateCompanySignatoryField,
       customers,
-      addCustomer,
-      updateCustomer,
-      deleteCustomer,
+      customersLoading,
+      customersError,
+      refreshCustomers,
       products,
-      addProduct,
-      updateProduct,
-      deleteProduct,
+      productsLoading,
+      productsError,
+      refreshProducts,
     }),
-    [companyProfile, customers, products],
+    [
+      companyProfile,
+      companyLoading,
+      companyError,
+      refreshCompanyProfile,
+      customers,
+      customersLoading,
+      customersError,
+      refreshCustomers,
+      products,
+      productsLoading,
+      productsError,
+      refreshProducts,
+    ],
   )
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>
@@ -110,4 +162,4 @@ export function useAppData() {
   return context
 }
 
-export { EMPTY_SAVED_CUSTOMER, EMPTY_PRODUCT }
+export { EMPTY_PRODUCT }

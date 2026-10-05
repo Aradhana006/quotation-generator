@@ -1,26 +1,10 @@
-/**
- * Company profile service.
- *
- * Future: GET /api/company, PUT /api/company
- */
+import { API_ENDPOINTS } from '../config/api.js'
+import { apiClient } from './apiClient.js'
 
-import { EMPTY_COMPANY_PROFILE } from '../data/defaults.js'
-import { STORAGE_KEYS } from '../data/defaults.js'
-import { readStorage, writeStorage } from './storageAdapter.js'
-
-export function getCompanyProfile() {
-  // Future: return apiClient.get('/company')
-  return readStorage(STORAGE_KEYS.companyProfile, EMPTY_COMPANY_PROFILE)
+export async function getCompanyProfile() {
+  return apiClient.get(API_ENDPOINTS.company)
 }
 
-export function saveCompanyProfile(profile) {
-  // Future: return apiClient.put('/company', profile)
-  writeStorage(STORAGE_KEYS.companyProfile, profile)
-  return profile
-}
-
-export function updateCompanyProfile(updater) {
-  const current = getCompanyProfile()
-  const updated = typeof updater === 'function' ? updater(current) : { ...current, ...updater }
-  return saveCompanyProfile(updated)
+export async function saveCompanyProfile(profile) {
+  return apiClient.put(API_ENDPOINTS.company, profile)
 }

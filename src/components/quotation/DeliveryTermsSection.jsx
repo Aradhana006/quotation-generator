@@ -10,7 +10,6 @@ function DeliveryTermsSection({ deliveryTerms, onChange }) {
         rows={3}
         value={deliveryTerms}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="4 to 5 weeks from confirmed purchase order."
         className={inputClassName}
       />
     </FormSection>

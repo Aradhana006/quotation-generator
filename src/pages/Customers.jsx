@@ -3,6 +3,7 @@ import PageContainer from '../components/PageContainer'
 import CustomerFormModal from '../components/customers/CustomerFormModal'
 import CustomerList from '../components/customers/CustomerList'
 import { useAppData } from '../context/AppDataContext'
+import * as customerService from '../services/customerService.js'
 
 const emptyFormCustomer = {
   companyName: '',
@@ -13,14 +14,18 @@ const emptyFormCustomer = {
 }
 
 function Customers() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = useAppData()
+  const { customers, customersLoading, customersError, refreshCustomers } = useAppData()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [formCustomer, setFormCustomer] = useState(emptyFormCustomer)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [deleteError, setDeleteError] = useState('')
 
   function openCreateModal() {
     setEditingId(null)
     setFormCustomer(emptyFormCustomer)
+    setSaveError('')
     setIsModalOpen(true)
   }
 
@@ -33,6 +38,7 @@ function Customers() {
       phone: customer.phone,
       address: customer.address,
     })
+    setSaveError('')
     setIsModalOpen(true)
   }
 
@@ -40,25 +46,42 @@ function Customers() {
     setFormCustomer((current) => ({ ...current, [field]: value }))
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!formCustomer.companyName.trim()) {
-      window.alert('Company name is required.')
+      setSaveError('Company name is required.')
       return
     }
 
-    if (editingId) {
-      updateCustomer(editingId, formCustomer)
-    } else {
-      addCustomer(formCustomer)
-    }
+    setIsSaving(true)
+    setSaveError('')
 
-    setIsModalOpen(false)
+    try {
+      if (editingId) {
+        await customerService.updateCustomer(editingId, formCustomer)
+      } else {
+        await customerService.createCustomer(formCustomer)
+      }
+
+      await refreshCustomers()
+      setIsModalOpen(false)
+    } catch (error) {
+      setSaveError(error.message || 'Unable to save customer.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  function handleDelete(customer) {
+  async function handleDelete(customer) {
     const confirmed = window.confirm(`Delete customer "${customer.companyName}"?`)
-    if (confirmed) {
-      deleteCustomer(customer.id)
+    if (!confirmed) return
+
+    setDeleteError('')
+
+    try {
+      await customerService.deleteCustomer(customer.id)
+      await refreshCustomers()
+    } catch (error) {
+      setDeleteError(error.message || 'Unable to delete customer.')
     }
   }
 
@@ -75,7 +98,25 @@ function Customers() {
         + Add Customer
       </button>
 
-      <CustomerList customers={customers} onEdit={openEditModal} onDelete={handleDelete} />
+      {customersLoading && (
+        <p className="mb-4 text-sm text-slate-500">Loading customers...</p>
+      )}
+
+      {customersError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {customersError}
+        </div>
+      )}
+
+      {deleteError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {deleteError}
+        </div>
+      )}
+
+      {!customersLoading && !customersError && (
+        <CustomerList customers={customers} onEdit={openEditModal} onDelete={handleDelete} />
+      )}
 
       <CustomerFormModal
         isOpen={isModalOpen}
@@ -84,6 +125,8 @@ function Customers() {
         onChange={handleFormChange}
         onSave={handleSave}
         onCancel={() => setIsModalOpen(false)}
+        isSaving={isSaving}
+        saveError={saveError}
       />
     </PageContainer>
   )

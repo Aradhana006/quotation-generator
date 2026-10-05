@@ -2,7 +2,15 @@ import FormSection from './FormSection'
 import CustomerFormFields from '../customers/CustomerFormFields'
 import { inputClassName } from './formStyles'
 
-function CustomerForm({ customer, customers, onChange, onSelectCustomer, error }) {
+function CustomerForm({
+  customer,
+  customers,
+  customersLoading,
+  onChange,
+  onSelectCustomer,
+  error,
+  compact = false,
+}) {
   function handleSelectChange(event) {
     const customerId = event.target.value
     if (!customerId) return
@@ -14,8 +22,13 @@ function CustomerForm({ customer, customers, onChange, onSelectCustomer, error }
     <FormSection
       title="Customer Details"
       description="Select a saved customer or enter details manually."
+      compact={compact}
     >
-      {customers.length === 0 && (
+      {customersLoading && (
+        <p className="mb-4 text-sm text-slate-500">Loading customers...</p>
+      )}
+
+      {!customersLoading && customers.length === 0 && (
         <p className="mb-4 text-sm text-slate-500">
           No customers found. Add customers from the Customers page, or enter details manually.
         </p>

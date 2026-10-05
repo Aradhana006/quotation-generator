@@ -35,11 +35,15 @@ export function copyCustomerToQuotation(customer) {
   }
 }
 
+/**
+ * Copies product master data into a new quotation line item (snapshot).
+ * Values are copied once — later product price changes do NOT affect this item.
+ */
 export function copyProductToQuotationItem(product) {
   return {
     id: crypto.randomUUID(),
     productId: product.id,
-    description: product.description || product.name,
+    description: product.description?.trim() || product.name,
     specification: '',
     quantity: 1,
     unit: product.unit,

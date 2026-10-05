@@ -1,110 +1,157 @@
 /**
  * Quotation transaction service.
- *
- * Future: GET/POST/PUT/DELETE /api/quotations
- *         POST /api/quotations/:id/duplicate
- *         PATCH /api/quotations/:id/status
+ * React → this file → Express → PostgreSQL
  */
 
-import { STORAGE_KEYS } from '../data/defaults.js'
-import { generateQuotationNumber } from '../utils/quotationNumber.js'
-import { generateId, readStorage, writeStorage } from './storageAdapter.js'
+import { API_BASE_URL, API_ENDPOINTS } from '../config/api.js'
+import { ApiError, apiClient } from './apiClient.js'
 
-function getAll() {
-  return readStorage(STORAGE_KEYS.quotations, [])
+function parseContentDispositionFilename(header, fallback) {
+  if (!header) return fallback
+  const utfMatch = header.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utfMatch?.[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1])
+    } catch {
+      return fallback
+    }
+  }
+  const plainMatch = header.match(/filename="?([^"]+)"?/i)
+  return plainMatch?.[1] || fallback
 }
 
-function saveAll(quotations) {
-  writeStorage(STORAGE_KEYS.quotations, quotations)
+function triggerBrowserDownload(blob, filename) {
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(objectUrl)
 }
 
-/** Normalize frontend shape for future API (quotationDetails → details) */
-export function toApiQuotation(quotation) {
-  const { quotationDetails, ...rest } = quotation
+function toQuery(filters = {}) {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      params.set(key, String(value))
+    }
+  })
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+export async function getQuotations(filters = {}) {
+  const result = await apiClient.getFull(`${API_ENDPOINTS.quotations}${toQuery(filters)}`)
   return {
-    ...rest,
-    details: quotationDetails || quotation.details,
-    quotationNumber:
-      quotation.quotationNumber ||
-      quotationDetails?.quotationNumber ||
-      quotation.details?.quotationNumber,
+    items: result.data || [],
+    pagination: result.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 },
   }
 }
 
-/** Normalize API response for frontend (details → quotationDetails) */
-export function fromApiQuotation(quotation) {
-  const { details, ...rest } = quotation
-  return {
-    ...rest,
-    quotationDetails: details || quotation.quotationDetails,
+export async function getQuotationSummary() {
+  return apiClient.get(`${API_ENDPOINTS.quotations}/summary`)
+}
+
+export async function getQuotation(id) {
+  return apiClient.get(`${API_ENDPOINTS.quotations}/${id}`)
+}
+
+export async function getQuotationById(id) {
+  return getQuotation(id)
+}
+
+export async function createQuotation(quotation) {
+  return apiClient.post(API_ENDPOINTS.quotations, quotation)
+}
+
+export async function updateQuotation(id, quotation) {
+  return apiClient.put(`${API_ENDPOINTS.quotations}/${id}`, quotation)
+}
+
+export async function deleteQuotation(id) {
+  return apiClient.delete(`${API_ENDPOINTS.quotations}/${id}`)
+}
+
+export async function duplicateQuotation(id) {
+  return apiClient.post(`${API_ENDPOINTS.quotations}/${id}/duplicate`)
+}
+
+export async function updateQuotationStatus(id, status) {
+  return apiClient.patch(`${API_ENDPOINTS.quotations}/${id}/status`, { status })
+}
+
+export async function reviseQuotation(id) {
+  return apiClient.post(`${API_ENDPOINTS.quotations}/${id}/revise`)
+}
+
+export async function getQuotationHistory(id) {
+  return apiClient.get(`${API_ENDPOINTS.quotations}/${id}/history`)
+}
+
+export async function archiveQuotation(id) {
+  return apiClient.post(`${API_ENDPOINTS.quotations}/${id}/archive`)
+}
+
+export async function restoreQuotation(id) {
+  return apiClient.post(`${API_ENDPOINTS.quotations}/${id}/restore`)
+}
+
+export async function generateNextQuotationNumber(excludeId = null) {
+  const query = excludeId ? `?excludeId=${excludeId}` : ''
+  const data = await apiClient.get(`${API_ENDPOINTS.quotations}/next-number${query}`)
+  return data.quotationNumber
+}
+
+export async function createPublicLink(id) {
+  return apiClient.post(`${API_ENDPOINTS.quotations}/${id}/public-link`)
+}
+
+export async function getPublicLink(id) {
+  return apiClient.get(`${API_ENDPOINTS.quotations}/${id}/public-link`)
+}
+
+export async function revokePublicLinks(id) {
+  return apiClient.post(`${API_ENDPOINTS.quotations}/${id}/public-link/revoke`)
+}
+
+export async function getQuotationResponses(id) {
+  return apiClient.get(`${API_ENDPOINTS.quotations}/${id}/responses`)
+}
+
+export async function downloadQuotationPdf(id) {
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.quotations}/${id}/pdf`, {
+      method: 'GET',
+      credentials: 'include',
+    })
+  } catch {
+    throw new ApiError(
+      'Unable to reach the API server. Is the backend running?',
+      'NETWORK_ERROR',
+      0,
+    )
   }
-}
 
-export function getQuotations() {
-  // Future: return apiClient.get('/quotations').then(r => r.data.map(fromApiQuotation))
-  return getAll()
-}
-
-export function getQuotationById(id) {
-  // Future: return apiClient.get(`/quotations/${id}`).then(r => fromApiQuotation(r.data))
-  return getAll().find((quotation) => quotation.id === id) || null
-}
-
-export function saveQuotation(quotationData) {
-  // Future: POST or PUT via apiClient
-  const now = new Date().toISOString()
-  const quotation = {
-    ...quotationData,
-    updatedAt: now,
-    createdAt: quotationData.createdAt || now,
+  const contentType = response.headers.get('content-type') || ''
+  if (!response.ok || !contentType.includes('application/pdf')) {
+    let message = 'Unable to generate PDF.'
+    try {
+      const json = await response.json()
+      message = json.error?.message || message
+    } catch {
+      // Keep the generic message when the server did not return JSON.
+    }
+    throw new ApiError(message, 'PDF_GENERATION_FAILED', response.status)
   }
 
-  const all = getAll()
-  const exists = all.some((item) => item.id === quotation.id)
-  const updated = exists
-    ? all.map((item) => (item.id === quotation.id ? quotation : item))
-    : [...all, quotation]
-
-  saveAll(updated)
-  return quotation
-}
-
-export function deleteQuotation(id) {
-  // Future: return apiClient.delete(`/quotations/${id}`)
-  saveAll(getAll().filter((quotation) => quotation.id !== id))
-}
-
-export function duplicateQuotation(id) {
-  // Future: return apiClient.post(`/quotations/${id}/duplicate`)
-  const original = getQuotationById(id)
-  if (!original) return null
-
-  const duplicate = JSON.parse(JSON.stringify(original))
-  duplicate.id = generateId()
-  duplicate.quotationNumber = generateQuotationNumber(getAll())
-  if (duplicate.quotationDetails) {
-    duplicate.quotationDetails.quotationNumber = duplicate.quotationNumber
-  }
-  duplicate.status = 'draft'
-  duplicate.createdAt = new Date().toISOString()
-  duplicate.updatedAt = duplicate.createdAt
-
-  saveAll([...getAll(), duplicate])
-  return duplicate
-}
-
-export function updateQuotationStatus(id, status) {
-  // Future: return apiClient.patch(`/quotations/${id}/status`, { status })
-  const updated = getAll().map((quotation) =>
-    quotation.id === id
-      ? { ...quotation, status, updatedAt: new Date().toISOString() }
-      : quotation,
+  const blob = await response.blob()
+  const filename = parseContentDispositionFilename(
+    response.headers.get('content-disposition'),
+    'quotation.pdf',
   )
-  saveAll(updated)
+  triggerBrowserDownload(blob, filename)
+  return filename
 }
-
-export function generateNextQuotationNumber(excludeId = null) {
-  return generateQuotationNumber(getAll(), excludeId)
-}
-
-export { generateQuotationNumber }

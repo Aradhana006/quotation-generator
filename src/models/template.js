@@ -26,7 +26,7 @@ export const BUILTIN_TEMPLATE_SHAPE = {
  * @property {string} fileType
  * @property {string} fileUrl - future: S3/cloud storage URL
  * @property {string} previewUrl
- * @property {Object|null} fieldMapping - future: maps quotation fields to template slots
+ * @property {Object} configuration - JSONB field mapping: pages + positioned fields
  * @property {string} companyId
  * @property {string} createdAt
  */
@@ -39,7 +39,7 @@ export const CUSTOM_TEMPLATE_SHAPE = {
   fileType: '',
   fileUrl: '',
   previewUrl: '',
-  fieldMapping: null,
+  configuration: {},
   companyId: '',
   createdAt: '',
 }

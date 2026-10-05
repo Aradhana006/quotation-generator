@@ -10,7 +10,6 @@ function NotesSection({ notes, onChange }) {
         rows={4}
         value={notes}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Prices are subject to final confirmation."
         className={inputClassName}
       />
     </FormSection>
