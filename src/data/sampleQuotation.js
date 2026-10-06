@@ -1,0 +1,82 @@
+export const SAMPLE_QUOTATION = {
+  status: 'draft',
+  company: {
+    name: 'BaaS Systems',
+    logo: '',
+    address: '42, Industrial Layout, Peenya, Bengaluru 560058',
+    phone: '+91 80 4123 8900',
+    email: 'sales@baassystems.example',
+    website: 'www.baassystems.example',
+    gstin: '29AABCU9603R1ZM',
+  },
+  customer: {
+    companyName: 'ADNA Automation',
+    contactPerson: 'Mr. Ramesh Kumar',
+    email: 'ramesh@adna.example',
+    phone: '+91 98765 43210',
+    address: 'Plot 18, Phase II, MIDC, Pune 411026',
+  },
+  quotationDetails: {
+    quotationNumber: 'QT-2026-001',
+    quotationDate: '2026-04-02',
+    validUntil: '2026-04-30',
+    referenceNumber: 'ENQ-4481',
+    subject: 'Supply of Edge Gateway for PLC connectivity',
+    currency: 'INR',
+  },
+  coverLetter: {
+    enabled: true,
+    greeting: 'Dear Sir,',
+    kindAttention: 'Mr. Ramesh Kumar, Projects',
+    subject: 'Quotation for Edge Gateway Hardware',
+    message:
+      'With reference to your enquiry, we are pleased to submit our offer for industrial edge hardware to connect with your existing PLC.',
+    closing: 'Thanking you,',
+  },
+  items: [
+    {
+      description: 'Edge hardware to connect with PLC',
+      specification:
+        'Processor – Intel / ARM\nRAM – 4 GB\nStorage – 80 GB SSD\nOperating System – Linux\nInput Power – 12 V DC',
+      quantity: 2,
+      unit: 'Nos',
+      unitPrice: 48500,
+      discountType: 'percentage',
+      discountValue: 5,
+      taxRate: 18,
+      lineTotal: 108081,
+    },
+  ],
+  additionalCharges: [
+    { name: 'Shipping', amount: 2500 },
+    { name: 'Installation', amount: 4500 },
+  ],
+  notes: 'Lead time: 3–4 weeks from technically and commercially clear order.',
+  paymentTerms: '40% advance, 60% against delivery.',
+  deliveryTerms: 'Ex-works Bengaluru.',
+  terms: [
+    'Prices are in INR and exclusive of any statutory variation in GST.',
+    'Warranty: 12 months from date of dispatch against manufacturing defects.',
+  ],
+  bankDetails: {
+    accountName: 'BaaS Systems',
+    accountNumber: '50200012345678',
+    bankName: 'HDFC Bank',
+    branch: 'Peenya',
+    ifsc: 'HDFC0001234',
+  },
+  signature: {
+    name: 'Anita Sharma',
+    designation: 'Manager – Sales',
+    signatureImage: '',
+  },
+  summary: {
+    subtotal: 97000,
+    totalDiscount: 4850,
+    taxableAmount: 92150,
+    subtotalAfterDiscount: 92150,
+    taxAmount: 16587,
+    additionalTotal: 7000,
+    grandTotal: 115737,
+  },
+}

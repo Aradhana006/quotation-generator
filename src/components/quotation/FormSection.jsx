@@ -1,10 +1,18 @@
-function FormSection({ title, description, children }) {
+function FormSection({ title, description, children, compact = false }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+    <section
+      className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 ${
+        compact ? 'p-4' : 'p-5'
+      }`}
+    >
+      <div className={compact ? 'mb-3' : 'mb-4'}>
+        <h2 className={`font-semibold tracking-tight text-slate-900 ${compact ? 'text-sm' : 'text-base'}`}>
+          {title}
+        </h2>
         {description && (
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
+          <p className={`mt-0.5 text-slate-500 ${compact ? 'text-xs' : 'text-sm'}`}>
+            {description}
+          </p>
         )}
       </div>
       {children}

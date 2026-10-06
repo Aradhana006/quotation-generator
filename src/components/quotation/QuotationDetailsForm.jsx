@@ -1,19 +1,22 @@
 import FormSection from './FormSection'
-
-const inputClassName =
-  'w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
-
-const labelClassName = 'mb-1 block text-sm font-medium text-slate-700'
+import { inputClassName, labelClassName } from './formStyles'
 
 const fields = [
-  { id: 'quotationNumber', label: 'Quotation Number', type: 'text', placeholder: 'QT-2026-001' },
+  { id: 'quotationNumber', label: 'Quotation Number', type: 'text' },
   { id: 'quotationDate', label: 'Quotation Date', type: 'date' },
   { id: 'validUntil', label: 'Valid Until', type: 'date' },
-  { id: 'referenceNumber', label: 'Reference Number', type: 'text', placeholder: 'PO-12345' },
-  { id: 'subject', label: 'Subject', type: 'text', placeholder: 'Website development proposal', fullWidth: true },
+  { id: 'referenceNumber', label: 'Reference Number', type: 'text' },
+  { id: 'subject', label: 'Subject', type: 'text', fullWidth: true },
 ]
 
-function QuotationDetailsForm({ details, onChange }) {
+const CURRENCIES = [
+  { value: 'INR', label: 'INR (₹)' },
+  { value: 'USD', label: 'USD ($)' },
+  { value: 'EUR', label: 'EUR (€)' },
+  { value: 'GBP', label: 'GBP (£)' },
+]
+
+function QuotationDetailsForm({ details, onChange, errors = {}, compact = false }) {
   function handleChange(field) {
     return (event) => {
       onChange(field, event.target.value)
@@ -23,9 +26,10 @@ function QuotationDetailsForm({ details, onChange }) {
   return (
     <FormSection
       title="Quotation Details"
-      description="Basic information for this quotation."
+      description="Dates, reference and currency."
+      compact={compact}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {fields.map((field) => (
           <div
             key={field.id}
@@ -40,11 +44,27 @@ function QuotationDetailsForm({ details, onChange }) {
               type={field.type}
               value={details[field.id]}
               onChange={handleChange(field.id)}
-              placeholder={field.placeholder}
-              className={inputClassName}
+              className={`${inputClassName} ${errors[field.id] ? 'border-red-400' : ''}`}
             />
+            {errors[field.id] && (
+              <p className="mt-1 text-xs text-red-600">{errors[field.id]}</p>
+            )}
           </div>
         ))}
+
+        <div>
+          <label htmlFor="currency" className={labelClassName}>Currency</label>
+          <select
+            id="currency"
+            value={details.currency}
+            onChange={handleChange('currency')}
+            className={inputClassName}
+          >
+            {CURRENCIES.map((currency) => (
+              <option key={currency.value} value={currency.value}>{currency.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
     </FormSection>
   )

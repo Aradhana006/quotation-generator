@@ -1,58 +1,65 @@
 import FormSection from './FormSection'
+import CustomerFormFields from '../customers/CustomerFormFields'
+import { inputClassName } from './formStyles'
 
-const inputClassName =
-  'w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
-
-const labelClassName = 'mb-1 block text-sm font-medium text-slate-700'
-
-const fields = [
-  { id: 'companyName', label: 'Company / Customer Name', type: 'text', placeholder: 'Acme Corp' },
-  { id: 'contactPerson', label: 'Contact Person', type: 'text', placeholder: 'John Doe' },
-  { id: 'email', label: 'Email', type: 'email', placeholder: 'john@example.com' },
-  { id: 'phone', label: 'Phone', type: 'tel', placeholder: '+91 98765 43210' },
-  { id: 'address', label: 'Address', type: 'textarea', placeholder: 'Street, city, state, postal code', fullWidth: true },
-]
-
-function CustomerForm({ customer, onChange }) {
-  function handleChange(field) {
-    return (event) => {
-      onChange(field, event.target.value)
-    }
+function CustomerForm({
+  customer,
+  customers,
+  customersLoading,
+  onChange,
+  onSelectCustomer,
+  error,
+  compact = false,
+}) {
+  function handleSelectChange(event) {
+    const customerId = event.target.value
+    if (!customerId) return
+    onSelectCustomer(customerId)
+    event.target.value = ''
   }
 
   return (
     <FormSection
       title="Customer Details"
-      description="Who is this quotation for?"
+      description="Select a saved customer or enter details manually."
+      compact={compact}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        {fields.map((field) => {
-          const commonProps = {
-            id: field.id,
-            name: field.id,
-            value: customer[field.id],
-            onChange: handleChange(field.id),
-            placeholder: field.placeholder,
-            className: inputClassName,
-          }
+      {customersLoading && (
+        <p className="mb-4 text-sm text-slate-500">Loading customers...</p>
+      )}
 
-          return (
-            <div
-              key={field.id}
-              className={field.fullWidth ? 'sm:col-span-2' : ''}
-            >
-              <label htmlFor={field.id} className={labelClassName}>
-                {field.label}
-              </label>
-              {field.type === 'textarea' ? (
-                <textarea {...commonProps} rows={3} />
-              ) : (
-                <input {...commonProps} type={field.type} />
-              )}
-            </div>
-          )
-        })}
-      </div>
+      {!customersLoading && customers.length === 0 && (
+        <p className="mb-4 text-sm text-slate-500">
+          No customers found. Add customers from the Customers page, or enter details manually.
+        </p>
+      )}
+
+      {customers.length > 0 && (
+        <div className="mb-4">
+          <label htmlFor="selectCustomer" className="mb-1 block text-sm font-medium text-slate-700">
+            Select Existing Customer
+          </label>
+          <select
+            id="selectCustomer"
+            defaultValue=""
+            onChange={handleSelectChange}
+            className={inputClassName}
+          >
+            <option value="" disabled>Select a customer...</option>
+            {customers.map((savedCustomer) => (
+              <option key={savedCustomer.id} value={savedCustomer.id}>
+                {savedCustomer.companyName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {error && (
+        <p className="mb-4 text-sm text-red-600">{error}</p>
+      )}
+
+      <CustomerFormFields customer={customer} onChange={onChange} />
     </FormSection>
   )
 }
