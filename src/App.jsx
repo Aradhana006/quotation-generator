@@ -5,7 +5,9 @@ import CompanySettings from './pages/CompanySettings'
 import CreateQuotation from './pages/CreateQuotation'
 import Customers from './pages/Customers'
 import Dashboard from './pages/Dashboard'
+import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import NotFound from './pages/NotFound'
 import Products from './pages/Products'
 import PublicQuotationView from './pages/PublicQuotationView'
@@ -20,6 +22,8 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/quote/view/:token" element={<PublicQuotationView />} />
 
       <Route element={<ProtectedRoute />}>
