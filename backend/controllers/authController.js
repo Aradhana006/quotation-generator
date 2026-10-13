@@ -5,6 +5,7 @@ import * as companyModel from '../models/companyModel.js'
 import * as passwordResetModel from '../models/passwordResetModel.js'
 import * as userModel from '../models/userModel.js'
 import { isSmtpConfigured, sendPasswordResetEmail } from '../services/emailService.js'
+import { isValidEmail } from '../utils/emailValidation.js'
 import { isHoneypotTriggered } from '../utils/honeypot.js'
 import { errorResponse, successResponse } from '../utils/response.js'
 
@@ -34,7 +35,9 @@ function validateRegisterBody(body) {
 }
 
 function validateLoginBody(body) {
-  if (!body.email?.trim()) return 'Email is required.'
+  const email = body.email?.trim()
+  if (!email) return 'Email is required.'
+  if (!isValidEmail(email)) return 'Enter a valid email address.'
   if (!body.password) return 'Password is required.'
   return null
 }
@@ -139,7 +142,7 @@ export async function register(req, res) {
 
 export async function login(req, res) {
   if (isHoneypotTriggered(req.body)) {
-    return errorResponse(res, 'INVALID_CREDENTIALS', 'Invalid email or password.', 401)
+    return errorResponse(res, 'INVALID_PASSWORD', 'Incorrect password.', 401)
   }
 
   const validationError = validateLoginBody(req.body)
@@ -152,12 +155,17 @@ export async function login(req, res) {
     const userRow = await userModel.findUserByEmail(email)
 
     if (!userRow?.password_hash) {
-      return errorResponse(res, 'INVALID_CREDENTIALS', 'Invalid email or password.', 401)
+      return errorResponse(
+        res,
+        'USER_NOT_FOUND',
+        'No account found with this email. Please register first.',
+        404,
+      )
     }
 
     const passwordMatches = await bcrypt.compare(password, userRow.password_hash)
     if (!passwordMatches) {
-      return errorResponse(res, 'INVALID_CREDENTIALS', 'Invalid email or password.', 401)
+      return errorResponse(res, 'INVALID_PASSWORD', 'Incorrect password.', 401)
     }
 
     const companyId = await userModel.getCompanyIdForUser(userRow.id)
@@ -231,6 +239,9 @@ export async function forgotPassword(req, res) {
   if (!email) {
     return errorResponse(res, 'VALIDATION_ERROR', 'Email is required.', 400)
   }
+  if (!isValidEmail(email)) {
+    return errorResponse(res, 'VALIDATION_ERROR', 'Enter a valid email address.', 400)
+  }
 
   // Never create or return reset links unless mail can be delivered.
   if (!isSmtpConfigured()) {
@@ -245,8 +256,12 @@ export async function forgotPassword(req, res) {
   try {
     const userRow = await userModel.findUserByEmail(email)
     if (!userRow) {
-      // Same response whether or not the account exists (no email enumeration).
-      return successResponse(res, { emailed: true }, GENERIC_FORGOT_MESSAGE)
+      return errorResponse(
+        res,
+        'USER_NOT_FOUND',
+        'No account found with this email. Please register first.',
+        404,
+      )
     }
 
     const rawToken = crypto.randomBytes(32).toString('base64url')
