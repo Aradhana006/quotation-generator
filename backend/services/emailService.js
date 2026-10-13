@@ -31,9 +31,28 @@ function emailConfigured() {
   return Boolean(resendApiKey() || smtpConfigured())
 }
 
-function getFromAddress() {
-  const from = env('EMAIL_FROM') || env('SMTP_USER') || 'beth.t@example.com'
+const PUBLIC_MAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'yahoo.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'icloud.com',
+])
+
+function getFromAddress({ forResend = false } = {}) {
+  let from = env('EMAIL_FROM') || env('SMTP_USER') || 'beth.t@example.com'
   const name = env('EMAIL_FROM_NAME') || 'QuoteBuilder'
+
+  // Resend rejects unverified public domains (e.g. @gmail.com).
+  if (forResend) {
+    const domain = from.split('@')[1]?.toLowerCase() || ''
+    if (!domain || PUBLIC_MAIL_DOMAINS.has(domain) || domain === 'gmail.com') {
+      from = 'beth.t@example.com'
+    }
+  }
+
   return { email: from, name, formatted: `"${name}" <${from}>` }
 }
 
@@ -59,7 +78,7 @@ async function sendViaResend({ to, subject, text, html }) {
     return { sent: false, reason: 'RESEND_NOT_CONFIGURED' }
   }
 
-  const from = getFromAddress()
+  const from = getFromAddress({ forResend: true })
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
