@@ -5,6 +5,7 @@ import * as companyModel from '../models/companyModel.js'
 import * as passwordResetModel from '../models/passwordResetModel.js'
 import * as userModel from '../models/userModel.js'
 import {
+  getEmailDebugInfo,
   isSmtpConfigured,
   sendPasswordResetEmail,
   verifySmtp,
@@ -319,17 +320,20 @@ export async function forgotPassword(req, res) {
 
 export async function getEmailHealth(req, res) {
   const result = await verifySmtp()
+  const debug = result.debug || getEmailDebugInfo()
   if (!result.ok) {
-    return errorResponse(
-      res,
-      'EMAIL_UNAVAILABLE',
-      result.detail
-        ? `Email SMTP check failed: ${result.detail}`
-        : `Email SMTP check failed: ${result.reason}`,
-      503,
-    )
+    return res.status(503).json({
+      success: false,
+      error: {
+        code: 'EMAIL_UNAVAILABLE',
+        message: result.detail
+          ? `Email check failed: ${result.detail}`
+          : `Email check failed: ${result.reason}`,
+      },
+      data: debug,
+    })
   }
-  return successResponse(res, null, 'Email SMTP is configured and reachable.')
+  return successResponse(res, debug, 'Email is configured and reachable.')
 }
 
 export async function validateResetToken(req, res) {

@@ -1,5 +1,9 @@
 import nodemailer from 'nodemailer'
 
+/** Fixed Resend test sender — never take From from env (avoids example.com / gmail mistakes). */
+const RESEND_FROM = 'QuoteBuilder <beth.t@example.com>'
+const EMAIL_BUILD = 'resend-from-v4'
+
 function env(name) {
   let value = String(process.env[name] || '').trim()
   // Common Render paste mistake: KEY=value put into the value field.
@@ -15,7 +19,6 @@ function env(name) {
 }
 
 function smtpPassword() {
-  // Gmail app passwords are 16 chars; spaces are optional in dashboards.
   return env('SMTP_PASS').replace(/\s+/g, '')
 }
 
@@ -31,18 +34,10 @@ function emailConfigured() {
   return Boolean(resendApiKey() || smtpConfigured())
 }
 
-function getFromAddress({ forResend = false } = {}) {
-  const name = env('EMAIL_FROM_NAME') || 'QuoteBuilder'
-
-  // Resend: never trust EMAIL_FROM / RESEND_FROM from Render for demos.
-  // Public domains (gmail/example.com) are rejected unless verified in Resend.
-  if (forResend) {
-    const from = 'beth.t@example.com'
-    return { email: from, name, formatted: `"${name}" <${from}>` }
-  }
-
+function getSmtpFromAddress() {
   const from = env('EMAIL_FROM') || env('SMTP_USER') || 'beth.t@example.com'
-  return { email: from, name, formatted: `"${name}" <${from}>` }
+  const name = env('EMAIL_FROM_NAME') || 'QuoteBuilder'
+  return `"${name}" <${from}>`
 }
 
 function createTransport({ port, secure }) {
@@ -67,21 +62,32 @@ async function sendViaResend({ to, subject, text, html }) {
     return { sent: false, reason: 'RESEND_NOT_CONFIGURED' }
   }
 
-  const from = getFromAddress({ forResend: true })
+  if (!apiKey.startsWith('re_')) {
+    return {
+      sent: false,
+      reason: 'SEND_FAILED',
+      detail:
+        'RESEND_API_KEY looks invalid. Paste the full key from Resend → API Keys (starts with re_).',
+    }
+  }
+
   try {
+    const payload = {
+      from: RESEND_FROM,
+      to: [to],
+      subject,
+      text,
+      html,
+    }
+    console.log(`[email] Resend send using from=${RESEND_FROM} build=${EMAIL_BUILD}`)
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: `${from.name} <${from.email}>`,
-        to: [to],
-        subject,
-        text,
-        html,
-      }),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
@@ -110,13 +116,12 @@ async function sendViaSmtp({ to, subject, text, html }) {
     return { sent: false, reason: 'SMTP_NOT_CONFIGURED' }
   }
 
-  const from = getFromAddress()
+  const from = getSmtpFromAddress()
   const attempts = [
     {
       port: Number(env('SMTP_PORT') || 587),
       secure: String(env('SMTP_SECURE') || '').toLowerCase() === 'true',
     },
-    // Render often times out on Gmail:587 — try SMTPS as fallback.
     { port: 465, secure: true },
   ]
 
@@ -131,7 +136,7 @@ async function sendViaSmtp({ to, subject, text, html }) {
     try {
       const transport = createTransport(attempt)
       await transport.sendMail({
-        from: from.formatted,
+        from,
         to,
         subject,
         text,
@@ -148,8 +153,8 @@ async function sendViaSmtp({ to, subject, text, html }) {
 }
 
 /**
- * Attempt to send email. Returns { sent: boolean, reason?: string }.
  * Prefer Resend (HTTPS) on Render — Gmail SMTP often times out there.
+ * Do not fall back to SMTP after a Resend API error (avoids long timeouts).
  */
 export async function sendEmail({ to, subject, text, html }) {
   if (!emailConfigured()) {
@@ -157,10 +162,7 @@ export async function sendEmail({ to, subject, text, html }) {
   }
 
   if (resendApiKey()) {
-    const resendResult = await sendViaResend({ to, subject, text, html })
-    if (resendResult.sent) return resendResult
-    // Fall through to SMTP if Resend fails and SMTP exists.
-    if (!smtpConfigured()) return resendResult
+    return sendViaResend({ to, subject, text, html })
   }
 
   return sendViaSmtp({ to, subject, text, html })
@@ -170,69 +172,74 @@ export function isSmtpConfigured() {
   return emailConfigured()
 }
 
+export function getEmailDebugInfo() {
+  const key = resendApiKey()
+  return {
+    build: EMAIL_BUILD,
+    provider: key ? 'resend' : smtpConfigured() ? 'smtp' : 'none',
+    resendFrom: RESEND_FROM,
+    hasResendKey: Boolean(key),
+    resendKeyPrefix: key ? `${key.slice(0, 5)}…` : null,
+  }
+}
+
 /** Used by /api/health/email so Render email misconfig is visible. */
 export async function verifySmtp() {
+  const debug = getEmailDebugInfo()
+
   if (resendApiKey()) {
+    if (!resendApiKey().startsWith('re_')) {
+      return {
+        ok: false,
+        reason: 'RESEND_UNAUTHORIZED',
+        detail: 'RESEND_API_KEY must start with re_. Create a new key at resend.com/api-keys.',
+        debug,
+      }
+    }
+
+    // Validate key with a lightweight authenticated call.
     try {
       const response = await fetch('https://api.resend.com/domains', {
         headers: { Authorization: `Bearer ${resendApiKey()}` },
       })
-      if (response.ok || response.status === 403 || response.status === 401) {
-        // 200 = key works. 401/403 = key rejected (still proves HTTPS path works).
-        if (response.status === 401) {
-          return {
-            ok: false,
-            reason: 'RESEND_UNAUTHORIZED',
-            detail: 'RESEND_API_KEY was rejected by Resend.',
-          }
+      if (response.status === 401) {
+        return {
+          ok: false,
+          reason: 'RESEND_UNAUTHORIZED',
+          detail:
+            'RESEND_API_KEY was rejected. Create a new key at resend.com/api-keys and paste only the key value on Render.',
+          debug,
         }
-        return { ok: true, provider: 'resend' }
       }
-      return {
-        ok: false,
-        reason: 'RESEND_VERIFY_FAILED',
-        detail: `Resend HTTP ${response.status}`,
-      }
+      // 200 or 403 (no domain permission) still means the key is accepted.
+      return { ok: true, provider: 'resend', debug }
     } catch (error) {
       return {
         ok: false,
         reason: 'RESEND_VERIFY_FAILED',
         detail: String(error.message || 'unknown').slice(0, 220),
+        debug,
       }
     }
   }
 
   if (!smtpConfigured()) {
-    return { ok: false, reason: 'EMAIL_NOT_CONFIGURED' }
+    return { ok: false, reason: 'EMAIL_NOT_CONFIGURED', debug }
   }
 
-  const attempts = [
-    {
+  try {
+    await createTransport({
       port: Number(env('SMTP_PORT') || 587),
       secure: String(env('SMTP_SECURE') || '').toLowerCase() === 'true',
-    },
-    { port: 465, secure: true },
-  ]
-  const seen = new Set()
-  let lastDetail = 'unknown'
-
-  for (const attempt of attempts) {
-    const key = `${attempt.port}:${attempt.secure}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    try {
-      await createTransport(attempt).verify()
-      return { ok: true, provider: `smtp:${attempt.port}` }
-    } catch (error) {
-      lastDetail = String(error.message || 'unknown').slice(0, 220)
-      console.error(`SMTP ${attempt.port} verify failed:`, error.message)
+    }).verify()
+    return { ok: true, provider: 'smtp', debug }
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'SMTP_VERIFY_FAILED',
+      detail: String(error.message || 'unknown').slice(0, 220),
+      debug,
     }
-  }
-
-  return {
-    ok: false,
-    reason: 'SMTP_VERIFY_FAILED',
-    detail: lastDetail,
   }
 }
 
