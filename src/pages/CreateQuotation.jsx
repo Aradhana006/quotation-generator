@@ -28,9 +28,11 @@ import { DEFAULT_SELECTED_TEMPLATE } from '../data/builtInTemplates'
 import {
   copyCustomerToQuotation,
   copyProductToQuotationItem,
+  mergeCompanySnapshot,
   profileToQuotationSnapshot,
 } from '../utils/dataMappers'
 import {
+  addDaysToDateString,
   createEmptyCharge,
   createEmptyItem,
   EMPTY_COVER_LETTER,
@@ -38,6 +40,7 @@ import {
   EMPTY_QUOTATION_DETAILS,
   getQuotationSummary,
   getTodayDateString,
+  isBlankItem,
 } from '../utils/quotationCalculations'
 import { hasValidationErrors, validateQuotation } from '../utils/quotationValidation'
 
@@ -63,7 +66,14 @@ function CreateQuotation() {
   const navigate = useNavigate()
   const isEditing = Boolean(id)
 
-  const { companyProfile, customers, customersLoading, products, productsLoading } = useAppData()
+  const {
+    companyProfile,
+    companyLoading,
+    customers,
+    customersLoading,
+    products,
+    productsLoading,
+  } = useAppData()
   const {
     defaultTermsLibrary,
     createQuotation,
@@ -105,23 +115,39 @@ function CreateQuotation() {
   const [signature, setSignature] = useState(() => initialSnapshot.signature)
   const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_SELECTED_TEMPLATE)
 
+  const companySectionTouched = useRef(false)
+  const bankSectionTouched = useRef(false)
+  const signatureSectionTouched = useRef(false)
+
+  // New quotations: auto-fill company / bank / signature from Company Settings.
+  // Stop overwriting a section once the user edits it on this quotation.
   useEffect(() => {
-    if (isEditing || !isInitialized) return
+    if (isEditing || !isInitialized || companyLoading) return
+
     const snapshot = profileToQuotationSnapshot(companyProfile)
-    setCompany(snapshot.company)
-    setBankDetails(snapshot.bankDetails)
-    setSignature(snapshot.signature)
-  }, [companyProfile, isEditing, isInitialized])
+    if (!companySectionTouched.current) setCompany(snapshot.company)
+    if (!bankSectionTouched.current) setBankDetails(snapshot.bankDetails)
+    if (!signatureSectionTouched.current) setSignature(snapshot.signature)
+  }, [companyProfile, companyLoading, isEditing, isInitialized])
 
   useEffect(() => {
     if (!isEditing) return
 
     async function loadQuotation() {
-      const existing = await fetchQuotationById(id)
+      let existing
+      try {
+        existing = await fetchQuotationById(id)
+      } catch {
+        return
+      }
       if (!existing) {
         navigate('/quotations')
         return
       }
+
+      companySectionTouched.current = false
+      bankSectionTouched.current = false
+      signatureSectionTouched.current = false
 
       setQuotationId(existing.id)
       setStatus(existing.status || 'draft')
@@ -129,7 +155,11 @@ function CreateQuotation() {
       setCompany(existing.company)
       setCustomer(existing.customer)
       setQuotationDetails(existing.quotationDetails)
-      setCoverLetter(existing.coverLetter)
+      setCoverLetter({
+        ...EMPTY_COVER_LETTER,
+        ...(existing.coverLetter || {}),
+        enabled: true,
+      })
       setItems(existing.items?.length ? existing.items : [createEmptyItem()])
       setAdditionalCharges(existing.additionalCharges || [])
       setNotes(existing.notes || '')
@@ -148,6 +178,21 @@ function CreateQuotation() {
     loadQuotation()
   }, [id, isEditing, fetchQuotationById, navigate])
 
+  // Editing: fill any blank company/bank/signature fields from Company Settings.
+  useEffect(() => {
+    if (!isEditing || !isInitialized || companyLoading) return
+
+    const merged = mergeCompanySnapshot(
+      { company, bankDetails, signature },
+      companyProfile,
+    )
+    if (!companySectionTouched.current) setCompany(merged.company)
+    if (!bankSectionTouched.current) setBankDetails(merged.bankDetails)
+    if (!signatureSectionTouched.current) setSignature(merged.signature)
+    // Only re-run when profile finishes loading / changes — not on every local edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: merge from settings, not local form churn
+  }, [isEditing, isInitialized, companyLoading, companyProfile])
+
   const hasInitializedCreate = useRef(false)
 
   useEffect(() => {
@@ -158,11 +203,13 @@ function CreateQuotation() {
     async function initCreate() {
       const today = getTodayDateString()
       const number = await generateQuotationNumber()
+      const validityDays = 30
       setQuotationDetails({
         ...EMPTY_QUOTATION_DETAILS,
         quotationNumber: number,
         quotationDate: today,
-        validUntil: '',
+        validityDays,
+        validUntil: addDaysToDateString(today, validityDays),
       })
       setIsInitialized(true)
     }
@@ -180,14 +227,15 @@ function CreateQuotation() {
   const currency = quotationDetails.currency || 'INR'
   const activeIndex = WIZARD_STEPS.findIndex((step) => step.id === activeStep)
   const canEdit = !isEditing || permissions.canEdit
-  const showSidePreview = showPreview && (activeStep === 'items' || activeStep === 'terms')
+  const showSidePreview =
+    showPreview && (activeStep === 'cover' || activeStep === 'items' || activeStep === 'terms')
 
   const quotationData = {
     status,
     company,
     customer,
     quotationDetails,
-    coverLetter,
+    coverLetter: { ...coverLetter, enabled: true },
     items,
     additionalCharges,
     notes,
@@ -199,7 +247,18 @@ function CreateQuotation() {
   }
 
   function handleCompanyChange(field, value) {
+    companySectionTouched.current = true
     setCompany((current) => ({ ...current, [field]: value }))
+  }
+
+  function handleReloadCompanyFromSettings() {
+    const snapshot = profileToQuotationSnapshot(companyProfile)
+    companySectionTouched.current = false
+    bankSectionTouched.current = false
+    signatureSectionTouched.current = false
+    setCompany(snapshot.company)
+    setBankDetails(snapshot.bankDetails)
+    setSignature(snapshot.signature)
   }
 
   function handleCustomerChange(field, value) {
@@ -217,7 +276,26 @@ function CreateQuotation() {
   }
 
   function handleCoverLetterChange(field, value) {
-    setCoverLetter((current) => ({ ...current, [field]: value }))
+    setCoverLetter((current) => ({ ...current, enabled: true, [field]: value }))
+  }
+
+  function prepareCoverPageDefaults() {
+    setCoverLetter((current) => ({
+      ...current,
+      enabled: true,
+      kindAttention:
+        current.kindAttention?.trim() ||
+        customer.contactPerson ||
+        '',
+      subject:
+        current.subject?.trim() ||
+        quotationDetails.subject ||
+        '',
+      signOffCompany:
+        current.signOffCompany?.trim() ||
+        company.name ||
+        '',
+    }))
   }
 
   function handleItemChange(itemId, field, value) {
@@ -235,7 +313,16 @@ function CreateQuotation() {
   function handleAddProductItem(productId) {
     const product = products.find((item) => item.id === productId)
     if (!product) return
-    setItems((current) => [...current, copyProductToQuotationItem(product)])
+    const nextItem = copyProductToQuotationItem(product)
+    setItems((current) => {
+      const blankIndex = current.findIndex(isBlankItem)
+      if (blankIndex !== -1) {
+        return current.map((item, index) =>
+          index === blankIndex ? { ...nextItem, id: item.id } : item,
+        )
+      }
+      return [...current, nextItem]
+    })
   }
 
   function handleRemoveItem(itemId) {
@@ -277,10 +364,12 @@ function CreateQuotation() {
   }
 
   function handleBankDetailsChange(field, value) {
+    bankSectionTouched.current = true
     setBankDetails((current) => ({ ...current, [field]: value }))
   }
 
   function handleSignatureChange(field, value) {
+    signatureSectionTouched.current = true
     setSignature((current) => ({ ...current, [field]: value }))
   }
 
@@ -307,6 +396,7 @@ function CreateQuotation() {
   function goToStep(stepId) {
     const index = WIZARD_STEPS.findIndex((step) => step.id === stepId)
     if (index < 0 || index > maxReachableIndex) return
+    if (stepId === 'cover') prepareCoverPageDefaults()
     setActiveStep(stepId)
     setSaveMessage('')
   }
@@ -352,6 +442,9 @@ function CreateQuotation() {
 
     const nextIndex = Math.min(activeIndex + 1, WIZARD_STEPS.length - 1)
     const nextStep = WIZARD_STEPS[nextIndex].id
+    if (nextStep === 'cover' || activeStep === 'basics') {
+      prepareCoverPageDefaults()
+    }
     setValidationErrors({})
     setSaveMessage('')
     unlockThrough(nextStep)
@@ -385,13 +478,14 @@ function CreateQuotation() {
     setIsSaving(true)
     setSaveMessage('')
 
+    // Persist the form snapshot (includes uploaded logo / signature images).
     const quotation = {
       id: quotationId,
       status: nextStatus,
       company,
       customer,
       quotationDetails,
-      coverLetter,
+      coverLetter: { ...coverLetter, enabled: true },
       items,
       additionalCharges,
       notes,
@@ -477,7 +571,9 @@ function CreateQuotation() {
         currency={currency}
         isEditing={isEditing}
         saveMessage={saveMessage}
-        showPreviewToggle={activeStep === 'items' || activeStep === 'terms'}
+        showPreviewToggle={
+          activeStep === 'cover' || activeStep === 'items' || activeStep === 'terms'
+        }
         showPreview={showPreview}
         onTogglePreview={() => setShowPreview((current) => !current)}
         onCancel={handleCancel}
@@ -510,6 +606,7 @@ function CreateQuotation() {
                 customTemplates={customTemplates}
                 onSelectTemplate={setSelectedTemplate}
                 onAddCustomClick={() => setIsModalOpen(true)}
+                quotationData={quotationData}
               />
 
               <div className="grid gap-4 lg:grid-cols-2">
@@ -533,6 +630,18 @@ function CreateQuotation() {
                   error={validationErrors.customer}
                 />
               </div>
+            </div>
+          )}
+
+          {activeStep === 'cover' && (
+            <div className="mx-auto max-w-4xl space-y-4">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Cover page</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Every quotation includes a cover page. Edit the letter details shown on page 1.
+                </p>
+              </div>
+              <CoverLetter coverLetter={coverLetter} onChange={handleCoverLetterChange} />
             </div>
           )}
 
@@ -595,20 +704,16 @@ function CreateQuotation() {
                 onAddFromDefault={handleAddFromDefault}
               />
 
-              <CompanyDetails company={company} onChange={handleCompanyChange} />
-
-              <CollapsibleFormSection
-                title="Cover Letter"
-                description="Optional introductory page before the quotation"
-                defaultOpen={coverLetter.enabled}
-                badge={coverLetter.enabled ? 'Enabled' : 'Optional'}
-              >
-                <CoverLetter bare coverLetter={coverLetter} onChange={handleCoverLetterChange} />
-              </CollapsibleFormSection>
+              <CompanyDetails
+                company={company}
+                onChange={handleCompanyChange}
+                onReloadFromSettings={handleReloadCompanyFromSettings}
+                settingsLoading={companyLoading}
+              />
 
               <CollapsibleFormSection
                 title="Bank Details"
-                description="Payment information shown on the quotation"
+                description="Loaded from Company Settings — edit for this quotation if needed"
                 defaultOpen={Boolean(bankDetails.bankName || bankDetails.accountNumber)}
               >
                 <BankDetails bare bankDetails={bankDetails} onChange={handleBankDetailsChange} />
@@ -616,8 +721,10 @@ function CreateQuotation() {
 
               <CollapsibleFormSection
                 title="Signature"
-                description="Authorised signatory block"
-                defaultOpen={Boolean(signature.name || signature.designation)}
+                description="Loaded from Company Settings — edit for this quotation if needed"
+                defaultOpen={Boolean(
+                  signature.name || signature.designation || signature.signatureImage,
+                )}
               >
                 <Signature bare signature={signature} onChange={handleSignatureChange} />
               </CollapsibleFormSection>

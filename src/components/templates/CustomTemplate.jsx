@@ -1,5 +1,5 @@
 import { configurationHasMappedFields } from '../../utils/resolveTemplateField'
-import { MetaGrid, QuotationBodyContent } from './shared/QuotationSections'
+import { QuotationDocumentPages } from './shared/QuotationSections'
 import CustomTemplateRenderer from './CustomTemplateRenderer'
 
 function FileReferenceNote({ customTemplate }) {
@@ -12,7 +12,6 @@ function FileReferenceNote({ customTemplate }) {
 }
 
 function CustomTemplate({ quotationData, customTemplate }) {
-  const { quotationDetails, coverLetter, status } = quotationData
   const hasMapping = configurationHasMappedFields(customTemplate?.configuration)
 
   if (hasMapping) {
@@ -34,8 +33,8 @@ function CustomTemplate({ quotationData, customTemplate }) {
   }
 
   return (
-    <div className="space-y-6 text-slate-900">
-      <div className="quote-preview-page bg-white p-6 shadow-sm sm:p-8">
+    <div className="space-y-4 text-slate-900">
+      <div className="quote-preview-page quote-preview-page--cover bg-white p-6 shadow-sm sm:p-8">
         <FileReferenceNote customTemplate={customTemplate} />
         <CustomTemplateRenderer
           quotation={quotationData}
@@ -44,16 +43,15 @@ function CustomTemplate({ quotationData, customTemplate }) {
           scale={0.62}
         />
       </div>
-
-      <div className="quote-preview-page bg-white p-6 shadow-sm sm:p-8">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">Quotation Data</h3>
-        <MetaGrid
-          quotationDetails={quotationDetails}
-          status={status}
-          showSubject={!coverLetter.enabled}
-        />
-        <QuotationBodyContent quotationData={quotationData} />
-      </div>
+      <QuotationDocumentPages
+        quotationData={{
+          ...quotationData,
+          coverLetter: { ...quotationData.coverLetter, enabled: true },
+        }}
+        variant="modern"
+        pageClassName="bg-white p-6 shadow-sm sm:p-8"
+        bodyHeading={<h3 className="mb-4 text-lg font-semibold text-slate-900">Quotation Data</h3>}
+      />
     </div>
   )
 }

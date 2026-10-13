@@ -36,7 +36,7 @@ export const EMPTY_COMPANY = {
 }
 
 export const EMPTY_COVER_LETTER = {
-  enabled: false,
+  enabled: true,
   greeting: 'Dear Sir,',
   kindAttention: '',
   subject: '',
@@ -63,6 +63,7 @@ export const EMPTY_SIGNATURE = {
 export const EMPTY_QUOTATION_DETAILS = {
   quotationNumber: '',
   quotationDate: '',
+  validityDays: 30,
   validUntil: '',
   referenceNumber: '',
   subject: '',
@@ -76,6 +77,21 @@ export const EMPTY_CUSTOMER = {
   email: '',
   phone: '',
   address: '',
+  referenceNumber: '',
+  gstin: '',
+}
+
+export function addDaysToDateString(dateString, days) {
+  if (!dateString) return ''
+  const amount = Number(days)
+  if (!Number.isFinite(amount)) return ''
+  const date = new Date(`${dateString}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+  date.setDate(date.getDate() + amount)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export function createEmptyItem() {
@@ -91,6 +107,15 @@ export function createEmptyItem() {
     discountValue: 0,
     taxRate: 18,
   }
+}
+
+export function isBlankItem(item) {
+  return (
+    !item?.productId &&
+    !String(item?.description || '').trim() &&
+    !String(item?.specification || '').trim() &&
+    (Number(item?.unitPrice) || 0) === 0
+  )
 }
 
 export function createEmptyCharge() {

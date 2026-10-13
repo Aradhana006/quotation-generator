@@ -1,5 +1,5 @@
 import FormSection from './FormSection'
-import { inputClassName, labelClassName } from './formStyles'
+import { inputClassName, labelClassName, priceInputClassName } from './formStyles'
 
 function AdditionalCharges({ charges, onChargeChange, onAddCharge, onRemoveCharge }) {
   return (
@@ -35,9 +35,10 @@ function AdditionalCharges({ charges, onChargeChange, onAddCharge, onRemoveCharg
                 type="number"
                 min="0"
                 step="0.01"
+                inputMode="decimal"
                 value={charge.amount}
                 onChange={(event) => onChargeChange(charge.id, 'amount', event.target.value)}
-                className={inputClassName}
+                className={priceInputClassName}
               />
             </div>
             <div className="flex items-end">

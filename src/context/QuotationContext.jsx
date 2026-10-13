@@ -56,7 +56,11 @@ export function QuotationProvider({ children }) {
   async function fetchQuotationById(id) {
     try {
       return await quotationService.getQuotation(id)
-    } catch {
+    } catch (error) {
+      // Let session expiry surface via the global 401 handler; treat missing docs as null.
+      if (error?.status === 401 || error?.code === 'UNAUTHORIZED') {
+        throw error
+      }
       return null
     }
   }

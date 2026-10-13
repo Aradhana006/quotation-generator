@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import FormSection from './FormSection'
 import { inputClassName, labelClassName } from './formStyles'
+import { ACCEPTED_IMAGE_ACCEPT, readImageFile } from '../../utils/dataMappers'
 
 function Signature({ signature, onChange, bare = false }) {
+  const [imageError, setImageError] = useState('')
+
   function handleChange(field) {
     return (event) => {
       onChange(field, event.target.value)
@@ -10,16 +14,20 @@ function Signature({ signature, onChange, bare = false }) {
 
   function handleImageChange(event) {
     const file = event.target.files?.[0]
+    setImageError('')
     if (!file) {
       onChange('signatureImage', '')
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      onChange('signatureImage', reader.result)
-    }
-    reader.readAsDataURL(file)
+    readImageFile(
+      file,
+      (result) => onChange('signatureImage', result),
+      (error) => {
+        setImageError(error.message || 'Unable to use this image.')
+        event.target.value = ''
+      },
+    )
   }
 
   const fieldsContent = (
@@ -57,10 +65,11 @@ function Signature({ signature, onChange, bare = false }) {
         <input
           id="signatureImage"
           type="file"
-          accept="image/*"
+          accept={ACCEPTED_IMAGE_ACCEPT}
           onChange={handleImageChange}
           className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
         />
+        {imageError && <p className="mt-2 text-sm text-red-600">{imageError}</p>}
         {signature.signatureImage ? (
           <img
             src={signature.signatureImage}
@@ -68,7 +77,9 @@ function Signature({ signature, onChange, bare = false }) {
             className="mt-3 h-16 w-auto rounded border border-slate-200 bg-white object-contain p-2"
           />
         ) : (
-          <p className="mt-2 text-sm text-slate-500">Optional. Appears on quotations and PDFs.</p>
+          <p className="mt-2 text-sm text-slate-500">
+            Use PNG or JPG (not PDF). Appears on quotations and PDFs.
+          </p>
         )}
       </div>
     </div>

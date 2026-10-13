@@ -1,68 +1,80 @@
 import { PAGE_WIDTH } from './document.js'
-import { formatMoney, formatPdfDate, hasAnyBankDetails } from './format.js'
+import { formatMoney, formatPdfDate, hasAnyBankDetails, isPdfDrawableImage } from './format.js'
 
 function contactLines(entity) {
   return [entity.address, entity.phone, entity.email, entity.website, entity.gstin ? `GSTIN: ${entity.gstin}` : '']
     .filter(Boolean)
 }
 
-export function drawCompanyHeader(pdf, quotation, variant) {
+/** Top letterhead: logo (right) or company name if no logo. White page, no colored bands. */
+export function drawCompanyHeader(pdf, quotation) {
   const company = quotation.company || {}
+  const logoWidth = 120
+  const logoHeight = 44
+  const logoX = pdf.right - logoWidth
+  const logoDrawn = pdf.tryDrawImage(company.logo, logoX, pdf.y, {
+    fit: [logoWidth, logoHeight],
+  })
 
-  if (variant === 'professional') {
-    const bandHeight = 72
-    pdf.doc.rect(0, 0, PAGE_WIDTH, bandHeight).fill(pdf.theme.colors.headerBg)
-    const logoOnBand = pdf.tryDrawImage(company.logo, pdf.left, 14, { fit: [56, 44] })
-    pdf.doc.fillColor('#ffffff').font(pdf.theme.fonts.heading).fontSize(18)
-    pdf.doc.text(company.name || 'Quotation', logoOnBand ? pdf.left + 68 : pdf.left, 18, {
-      width: pdf.width - 80,
-    })
-    pdf.doc.font(pdf.theme.fonts.body).fontSize(8)
-    pdf.doc.text(contactLines(company).join('  ·  '), logoOnBand ? pdf.left + 68 : pdf.left, 42, {
-      width: pdf.width - 80,
-    })
-    pdf.y = bandHeight + 20
-    return
-  }
-
-  if (variant === 'classic') {
-    const logoX = (PAGE_WIDTH - 56) / 2
-    if (pdf.tryDrawImage(company.logo, logoX, pdf.y, { fit: [56, 40] })) {
-      pdf.y += 46
-    }
-    pdf.font('heading').size(20).fill(pdf.theme.colors.heading)
-    pdf.wrappedText(company.name || 'Quotation', { align: 'center', paddingBottom: 4 })
-    pdf.font('body').size(9).fill(pdf.theme.colors.muted)
-    pdf.wrappedText(contactLines(company).join(' | '), { align: 'center', paddingBottom: 4 })
-    pdf.doubleLine()
-    return
-  }
-
-  const logoDrawn = pdf.tryDrawImage(company.logo, pdf.left, pdf.y, { fit: [72, 48] })
   if (logoDrawn) {
-    pdf.font('heading').size(20).fill(pdf.theme.colors.heading)
-    pdf.doc.text(company.name || 'Quotation', pdf.left + 84, pdf.y, { width: pdf.width - 84 })
-    pdf.font('body').size(8).fill(pdf.theme.colors.muted)
-    pdf.doc.text(contactLines(company).join('\n'), pdf.left + 84, pdf.y + 22, {
-      width: pdf.width - 84,
-    })
-    pdf.y += 56
+    pdf.y += logoHeight + 10
   } else {
-    pdf.font('heading').size(22).fill(pdf.theme.colors.heading)
-    pdf.wrappedText(company.name || 'Quotation', { paddingBottom: 4 })
-    pdf.font('body').size(9).fill(pdf.theme.colors.muted)
-    pdf.wrappedText(contactLines(company).join('  ·  '), { paddingBottom: 6 })
+    pdf.font('heading').size(14).fill(pdf.theme.colors.text)
+    pdf.doc.text(company.name || 'Quotation', pdf.left, pdf.y, {
+      width: pdf.width,
+      align: 'right',
+    })
+    pdf.y += 20
   }
-  pdf.hline(pdf.theme.colors.accent, 1.2)
+
+  pdf.doc
+    .strokeColor(pdf.theme.colors.line)
+    .lineWidth(0.8)
+    .moveTo(pdf.left, pdf.y)
+    .lineTo(pdf.right, pdf.y)
+    .stroke()
+  pdf.y += 12
+}
+
+/** Bottom block: company name + contact lines. */
+export function drawCompanyFooter(pdf, quotation) {
+  const company = quotation.company || {}
+  // Stay with the content — do not jump to the bottom of the page.
+  if (pdf.remaining() < 48) {
+    pdf.addPage()
+  }
+  pdf.move(8)
+  pdf.doc
+    .strokeColor(pdf.theme.colors.line)
+    .lineWidth(0.8)
+    .moveTo(pdf.left, pdf.y)
+    .lineTo(pdf.right, pdf.y)
+    .stroke()
+  pdf.y += 8
+
+  pdf.font('heading').size(10).fill(pdf.theme.colors.text)
+  pdf.wrappedText(company.name || 'Your Company', { paddingBottom: 2 })
+  pdf.font('body').size(8).fill(pdf.theme.colors.muted)
+  const lines = contactLines(company)
+  if (lines.length) {
+    pdf.wrappedText(lines.join('  ·  '), { paddingBottom: 2 })
+  }
 }
 
 export function drawMeta(pdf, quotation, variant) {
   const details = quotation.quotationDetails || {}
+  const downloadedOn = formatPdfDate(new Date().toISOString().slice(0, 10))
+  const validityLabel =
+    details.validityDays !== '' && details.validityDays != null
+      ? `${details.validityDays} day(s)`
+      : '—'
   const rows = [
     ['Quotation No.', details.quotationNumber || '—'],
     ['Revision', String(quotation.revisionNumber ?? 0)],
     ['Date', formatPdfDate(details.quotationDate)],
     ['Valid Until', formatPdfDate(details.validUntil)],
+    ['Validity', validityLabel],
+    ['Downloaded', downloadedOn],
     ['Reference', details.referenceNumber || '—'],
     ['Subject', details.subject || '—'],
   ]
@@ -85,7 +97,13 @@ export function drawMeta(pdf, quotation, variant) {
       pdf.y + 46,
       { width: pdf.width - 20 },
     )
-    pdf.y += 84
+    pdf.doc.text(
+      `${rows[6][0]}: ${rows[6][1]}    ${rows[7][0]}: ${rows[7][1]}`,
+      pdf.left + 10,
+      pdf.y + 58,
+      { width: pdf.width - 20 },
+    )
+    pdf.y += 96
     return
   }
 
@@ -108,6 +126,8 @@ export function drawCustomer(pdf, quotation, variant) {
   pdf.font('body').size(9).fill(pdf.theme.colors.muted)
   const lines = [
     customer.contactPerson ? `Kind Attn: ${customer.contactPerson}` : '',
+    customer.referenceNumber ? `Ref: ${customer.referenceNumber}` : '',
+    customer.gstin ? `GSTIN: ${customer.gstin}` : '',
     customer.address,
     customer.phone,
     customer.email,
@@ -116,42 +136,57 @@ export function drawCustomer(pdf, quotation, variant) {
   pdf.move(8)
 }
 
-export function drawCoverLetter(pdf, quotation) {
+export function drawCoverLetter(pdf, quotation, { asCoverPage = false } = {}) {
   const cover = quotation.coverLetter || {}
-  if (!cover.enabled) return
 
-  pdf.ensureSpace(80)
-  pdf.sectionTitle('Cover letter')
-  pdf.font('body').size(10).fill(pdf.theme.colors.text)
-  if (cover.greeting) pdf.wrappedText(cover.greeting, { paddingBottom: 8 })
-  if (cover.kindAttention) pdf.wrappedText(`Kind Attn: ${cover.kindAttention}`, { paddingBottom: 6 })
-  if (cover.subject) {
+  if (asCoverPage) {
+    pdf.move(10)
+    pdf.font('body').size(8).fill(pdf.theme.colors.muted)
+    pdf.wrappedText('COVER LETTER', { paddingBottom: 10 })
+  } else {
+    pdf.ensureSpace(60)
+    pdf.sectionTitle('Cover letter')
+  }
+
+  // Keep cover content packed — leftover white stays only at the bottom of the page.
+  pdf.font('body').size(asCoverPage ? 10 : 10).fill(pdf.theme.colors.text)
+  if (cover.greeting) pdf.wrappedText(cover.greeting, { paddingBottom: asCoverPage ? 8 : 6 })
+  if (cover.kindAttention) {
     pdf.font('heading').size(10)
-    pdf.wrappedText(`Subject: ${cover.subject}`, { paddingBottom: 8 })
+    pdf.wrappedText(`Kind Attn: ${cover.kindAttention}`, { paddingBottom: asCoverPage ? 8 : 5 })
     pdf.font('body').size(10)
   }
-  if (cover.message) pdf.wrappedText(cover.message, { paddingBottom: 10, lineGap: 3 })
-  if (cover.closing) pdf.wrappedText(cover.closing, { paddingBottom: 8 })
+  if (cover.subject) {
+    pdf.font('heading').size(10)
+    pdf.wrappedText(`Subject: ${cover.subject}`, { paddingBottom: asCoverPage ? 8 : 5 })
+    pdf.font('body').size(10)
+  }
+  if (cover.message) {
+    pdf.wrappedText(cover.message, { paddingBottom: asCoverPage ? 10 : 8, lineGap: 2 })
+  }
+  if (cover.closing) pdf.wrappedText(cover.closing, { paddingBottom: asCoverPage ? 10 : 6 })
   pdf.font('heading').size(10)
   if (cover.signOffCompany) pdf.wrappedText(cover.signOffCompany, { paddingBottom: 2 })
   pdf.font('body').size(9).fill(pdf.theme.colors.muted)
-  if (cover.signOffTitle) pdf.wrappedText(cover.signOffTitle, { paddingBottom: 10 })
+  if (cover.signOffTitle) pdf.wrappedText(cover.signOffTitle, { paddingBottom: 6 })
 }
 
 export function drawItems(pdf, quotation) {
   const items = quotation.items || []
   const currency = quotation.quotationDetails?.currency || 'INR'
-  pdf.sectionTitle('Quotation items')
+  const subject = quotation.quotationDetails?.subject
+
+  if (subject) {
+    pdf.font('heading').size(12).fill(pdf.theme.colors.text)
+    pdf.wrappedText(subject, { paddingBottom: 10 })
+  }
 
   const columns = [
-    { key: 'no', label: 'S.No', ratio: 0.055, align: 'center' },
-    { key: 'description', label: 'Description', ratio: 0.34 },
-    { key: 'qty', label: 'Qty', ratio: 0.07, align: 'right' },
-    { key: 'unit', label: 'Unit', ratio: 0.08 },
-    { key: 'price', label: 'Unit Price', ratio: 0.14, align: 'right' },
-    { key: 'discount', label: 'Disc.', ratio: 0.09, align: 'right' },
-    { key: 'tax', label: 'Tax', ratio: 0.075, align: 'right' },
-    { key: 'total', label: 'Total', ratio: 0.15, align: 'right' },
+    { key: 'no', label: 'Sno.', ratio: 0.08, align: 'center' },
+    { key: 'description', label: 'Description', ratio: 0.46 },
+    { key: 'price', label: 'Price', ratio: 0.16, align: 'center' },
+    { key: 'qty', label: 'Qty', ratio: 0.1, align: 'center' },
+    { key: 'total', label: 'Total Price', ratio: 0.2, align: 'center' },
   ].map((column) => ({ ...column, width: pdf.width * column.ratio }))
 
   const descriptionWidth = columns.find((column) => column.key === 'description').width - 10
@@ -175,57 +210,59 @@ export function drawItems(pdf, quotation) {
     const spec = item.specification || ''
     pdf.font('body').size(8)
     const descHeight = Math.max(12, pdf.textHeight(description, { width: descriptionWidth }))
-    const specHeight = spec ? pdf.textHeight(spec, { width: pdf.width - 16 }) + 8 : 0
-    const rowHeight = descHeight + 10
+    const specHeight = spec ? pdf.textHeight(spec, { width: descriptionWidth }) + 6 : 0
+    const rowHeight = descHeight + specHeight + 12
 
-    if (pdf.remaining() < rowHeight + specHeight + 24) {
+    if (pdf.remaining() < rowHeight + 24) {
       pdf.addPage()
       drawHeader()
     }
 
-    if (index % 2 === 1 && pdf.theme.stripedRows) {
-      pdf.doc.rect(pdf.left, pdf.y, pdf.width, rowHeight).fill(pdf.theme.colors.stripe)
-    }
-
     if (pdf.theme.cellBorders) {
-      pdf.doc.rect(pdf.left, pdf.y, pdf.width, rowHeight).strokeColor(pdf.theme.colors.line).lineWidth(0.4).stroke()
+      pdf.doc
+        .rect(pdf.left, pdf.y, pdf.width, rowHeight)
+        .strokeColor(pdf.theme.colors.tableBorder || pdf.theme.colors.line)
+        .lineWidth(0.6)
+        .stroke()
     }
-
-    const discountLabel =
-      item.discountType === 'fixed'
-        ? formatMoney(item.discountValue || item.discountAmount || 0, currency)
-        : `${Number(item.discountValue) || 0}%`
 
     const values = {
-      no: String(index + 1),
+      no: `${index + 1}.`,
       description,
       qty: String(item.quantity ?? ''),
-      unit: item.unit || '',
       price: formatMoney(item.unitPrice, currency),
-      discount: discountLabel,
-      tax: `${Number(item.taxRate) || 0}%`,
       total: formatMoney(item.lineTotal ?? 0, currency),
     }
 
     pdf.font('body').size(8).fill(pdf.theme.colors.text)
     let x = pdf.left + 4
     columns.forEach((column) => {
-      pdf.doc.text(values[column.key], x, pdf.y + 4, {
-        width: column.width - 6,
-        align: column.align || 'left',
-      })
+      if (column.key === 'description') {
+        pdf.doc.text(values.description, x, pdf.y + 4, {
+          width: column.width - 6,
+          align: 'left',
+        })
+        if (spec.trim()) {
+          pdf.font('body').size(7.5).fill(pdf.theme.colors.muted)
+          pdf.doc.text(spec, x, pdf.y + 4 + descHeight, {
+            width: column.width - 6,
+            align: 'left',
+            lineGap: 1.5,
+          })
+          pdf.font('body').size(8).fill(pdf.theme.colors.text)
+        }
+      } else {
+        pdf.doc.text(values[column.key], x, pdf.y + 4, {
+          width: column.width - 6,
+          align: column.align || 'left',
+        })
+      }
       x += column.width
     })
     pdf.y += rowHeight
-
-    if (spec.trim()) {
-      pdf.ensureSpace(specHeight + 6)
-      pdf.font('body').size(8).fill(pdf.theme.colors.muted)
-      pdf.wrappedText(spec, { paddingBottom: 8, lineGap: 2 })
-    }
   })
 
-  pdf.move(8)
+  pdf.move(4)
 }
 
 export function drawPricing(pdf, quotation) {
@@ -243,27 +280,27 @@ export function drawPricing(pdf, quotation) {
     pdf.sectionTitle('Additional charges')
     charges.forEach((charge) => {
       pdf.font('body').size(9).fill(pdf.theme.colors.text)
-      pdf.ensureSpace(16)
+      pdf.ensureSpace(14)
       pdf.doc.text(charge.name || 'Charge', pdf.left, pdf.y, { width: pdf.width - 120 })
       pdf.doc.text(formatMoney(charge.amount, currency), pdf.right - 120, pdf.y, {
         width: 120,
         align: 'right',
       })
-      pdf.y += 14
+      pdf.y += 13
     })
-    pdf.move(6)
+    pdf.move(4)
   }
 
   pdf.sectionTitle('Pricing summary')
   const boxWidth = 240
   const boxLeft = pdf.right - boxWidth
-  pdf.ensureSpace(rows.length * 16 + 28)
+  pdf.ensureSpace(rows.length * 14 + 26)
 
   rows.forEach(([label, value]) => {
     pdf.font('body').size(9).fill(pdf.theme.colors.text)
     pdf.doc.text(label, boxLeft, pdf.y, { width: 120 })
     pdf.doc.text(formatMoney(value, currency), boxLeft + 120, pdf.y, { width: 120, align: 'right' })
-    pdf.y += 15
+    pdf.y += 13
   })
 
   pdf.doc.rect(boxLeft, pdf.y, boxWidth, 22).fill(pdf.theme.colors.totalBg)
@@ -273,85 +310,140 @@ export function drawPricing(pdf, quotation) {
     width: 122,
     align: 'right',
   })
-  pdf.y += 32
+  pdf.y += 28
+}
+
+function drawLabelValue(pdf, label, value) {
+  if (!value && value !== 0) return
+  pdf.ensureSpace(12)
+  pdf.font('body').size(9).fill(pdf.theme.colors.text)
+  pdf.doc.text(String(label), pdf.left, pdf.y, { width: 110 })
+  pdf.doc.text(':', pdf.left + 112, pdf.y, { width: 10 })
+  pdf.doc.text(String(value), pdf.left + 124, pdf.y, { width: pdf.width - 124 })
+  pdf.y += 12
 }
 
 export function drawNotesAndTerms(pdf, quotation) {
-  if (quotation.notes?.trim()) {
-    pdf.sectionTitle('Notes')
-    pdf.font('body').size(9).fill(pdf.theme.colors.text)
-    pdf.wrappedText(quotation.notes, { paddingBottom: 10 })
-  }
-
-  if (quotation.paymentTerms?.trim()) {
-    pdf.sectionTitle('Payment terms')
-    pdf.font('body').size(9).fill(pdf.theme.colors.text)
-    pdf.wrappedText(quotation.paymentTerms, { paddingBottom: 10 })
-  }
-
-  if (quotation.deliveryTerms?.trim()) {
-    pdf.sectionTitle('Delivery terms')
-    pdf.font('body').size(9).fill(pdf.theme.colors.text)
-    pdf.wrappedText(quotation.deliveryTerms, { paddingBottom: 10 })
-  }
-
+  const details = quotation.quotationDetails || {}
+  const company = quotation.company || {}
   const terms = quotation.terms || []
-  if (terms.length) {
-    pdf.sectionTitle('Terms & conditions')
+
+  pdf.font('heading').size(10).fill(pdf.theme.colors.text)
+  pdf.wrappedText('TERMS & CONDITIONS', { paddingBottom: 6 })
+  pdf.doc
+    .moveTo(pdf.left, pdf.y - 4)
+    .lineTo(pdf.left + 130, pdf.y - 4)
+    .strokeColor(pdf.theme.colors.accent)
+    .lineWidth(0.8)
+    .stroke()
+
+  const validity =
+    details.validityDays !== '' && details.validityDays != null
+      ? `${details.validityDays} Days`
+      : details.validUntil
+        ? `Until ${formatPdfDate(details.validUntil)}`
+        : ''
+
+  drawLabelValue(pdf, 'Validity', validity)
+  drawLabelValue(pdf, 'Payment', quotation.paymentTerms)
+  drawLabelValue(pdf, 'Delivery', quotation.deliveryTerms)
+  drawLabelValue(pdf, 'GSTIN', company.gstin)
+
+  terms.filter(Boolean).forEach((term) => {
     pdf.font('body').size(9).fill(pdf.theme.colors.text)
-    terms.forEach((term, index) => {
-      pdf.wrappedText(`${index + 1}. ${term}`, { paddingBottom: 4 })
-    })
-    pdf.move(6)
+    pdf.wrappedText(`• ${term}`, { paddingBottom: 3 })
+  })
+
+  if (quotation.notes?.trim()) {
+    pdf.move(2)
+    pdf.font('body').size(9).fill(pdf.theme.colors.muted)
+    pdf.wrappedText(quotation.notes, { paddingBottom: 4 })
   }
+  pdf.move(4)
 }
 
 export function drawBankAndSignature(pdf, quotation) {
   const bank = quotation.bankDetails || {}
   if (hasAnyBankDetails(bank)) {
-    pdf.sectionTitle('Bank details')
-    pdf.font('body').size(9).fill(pdf.theme.colors.text)
-    const lines = [
-      ['Account Name', bank.accountName],
-      ['Account Number', bank.accountNumber],
-      ['Bank Name', bank.bankName],
-      ['Branch', bank.branch],
-      ['IFSC', bank.ifsc],
-    ].filter(([, value]) => value)
-    lines.forEach(([label, value]) => {
-      pdf.ensureSpace(14)
-      pdf.doc.font(pdf.theme.fonts.heading).text(`${label}:`, pdf.left, pdf.y, { width: 120 })
-      pdf.doc.font(pdf.theme.fonts.body).text(value, pdf.left + 120, pdf.y, { width: pdf.width - 120 })
-      pdf.y += 13
-    })
-    pdf.move(10)
+    pdf.font('heading').size(10).fill(pdf.theme.colors.text)
+    pdf.wrappedText('Bank Details', { paddingBottom: 4 })
+    pdf.doc
+      .moveTo(pdf.left, pdf.y - 4)
+      .lineTo(pdf.left + 90, pdf.y - 4)
+      .strokeColor(pdf.theme.colors.accent)
+      .lineWidth(0.8)
+      .stroke()
+
+    drawLabelValue(pdf, 'Account Name', bank.accountName)
+    drawLabelValue(pdf, 'Account Number', bank.accountNumber)
+    drawLabelValue(pdf, 'Bank Name', bank.bankName)
+    drawLabelValue(pdf, 'Branch', bank.branch)
+    drawLabelValue(pdf, 'IFSC', bank.ifsc)
+    pdf.move(4)
   }
 
   const signature = quotation.signature || {}
-  pdf.ensureSpace(80)
-  pdf.sectionTitle('Authorised signatory')
-  const imageDrawn = pdf.tryDrawImage(signature.signatureImage, pdf.left, pdf.y, { fit: [120, 40] })
-  if (imageDrawn) pdf.y += 46
-  pdf.font('heading').size(10).fill(pdf.theme.colors.text)
-  pdf.wrappedText(signature.name || quotation.coverLetter?.signOffCompany || quotation.company?.name || '', {
-    paddingBottom: 2,
-  })
+  const company = quotation.company || {}
+  const hasDrawableSignature = isPdfDrawableImage(signature.signatureImage)
+  // Small reserve so signature stays with the schedule when possible (keeps 2 pages).
+  pdf.ensureSpace(hasDrawableSignature ? 64 : 40)
+
+  pdf.font('body').size(10).fill(pdf.theme.colors.text)
+  pdf.wrappedText(`For ${company.name || 'Your Company'}`, { paddingBottom: 3 })
+  const imageDrawn = pdf.tryDrawImage(signature.signatureImage, pdf.left, pdf.y, { fit: [100, 32] })
+  if (imageDrawn) pdf.y += 36
+  else pdf.y += 12
   pdf.font('body').size(9).fill(pdf.theme.colors.muted)
-  pdf.wrappedText(signature.designation || 'Authorised Signatory', { paddingBottom: 4 })
+  pdf.wrappedText(signature.designation || 'Authorised Signatory', { paddingBottom: 1 })
+  if (signature.name) {
+    pdf.font('heading').size(9).fill(pdf.theme.colors.text)
+    pdf.wrappedText(signature.name, { paddingBottom: 2 })
+  }
+}
+
+function drawLetterMeta(pdf, quotation) {
+  const details = quotation.quotationDetails || {}
+  pdf.ensureSpace(16)
+  pdf.font('body').size(10).fill(pdf.theme.colors.text)
+  const left = details.referenceNumber || details.quotationNumber || '—'
+  const right = formatPdfDate(details.quotationDate)
+  pdf.doc.text(left, pdf.left, pdf.y, { width: pdf.width / 2 })
+  pdf.doc.text(right, pdf.left + pdf.width / 2, pdf.y, { width: pdf.width / 2, align: 'right' })
+  pdf.y += 14
+}
+
+function drawRecipient(pdf, quotation) {
+  const customer = quotation.customer || {}
+  pdf.font('body').size(10).fill(pdf.theme.colors.text)
+  pdf.wrappedText('To', { paddingBottom: 1 })
+  pdf.font('heading').size(11)
+  pdf.wrappedText(customer.companyName || '—', { paddingBottom: 1 })
+  pdf.font('body').size(10)
+  if (customer.address) pdf.wrappedText(customer.address, { paddingBottom: 3, lineGap: 1 })
+  if (customer.contactPerson) {
+    pdf.font('heading').size(10)
+    pdf.wrappedText(`Kind Attn: ${customer.contactPerson}`, { paddingBottom: 6 })
+    pdf.font('body').size(10)
+  } else {
+    pdf.move(4)
+  }
 }
 
 export function renderStandardQuotation(pdf, quotation, variant) {
+  // Page 1: cover (packed top-to-bottom; leftover white only after last block)
   drawCompanyHeader(pdf, quotation, variant)
-  drawMeta(pdf, quotation, variant)
-  drawCustomer(pdf, quotation, variant)
-  drawCoverLetter(pdf, quotation)
+  drawLetterMeta(pdf, quotation)
+  drawRecipient(pdf, quotation)
+  drawCoverLetter(pdf, quotation, { asCoverPage: true })
+  drawBankAndSignature(pdf, { ...quotation, bankDetails: {} })
+  drawCompanyFooter(pdf, quotation)
 
-  if (quotation.coverLetter?.enabled && pdf.remaining() < 140) {
-    pdf.addPage()
-  }
-
+  // Page 2: quotation schedule
+  pdf.addPage()
+  drawCompanyHeader(pdf, quotation, variant)
   drawItems(pdf, quotation)
   drawPricing(pdf, quotation)
   drawNotesAndTerms(pdf, quotation)
   drawBankAndSignature(pdf, quotation)
+  drawCompanyFooter(pdf, quotation)
 }

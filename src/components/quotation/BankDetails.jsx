@@ -1,18 +1,19 @@
 import FormSection from './FormSection'
 import { inputClassName, labelClassName } from './formStyles'
+import { toUpperCaseValue } from '../../utils/textFormat'
 
 const fields = [
   { id: 'accountName', label: 'Account Name', type: 'text' },
   { id: 'accountNumber', label: 'Account Number', type: 'text' },
   { id: 'bankName', label: 'Bank Name', type: 'text' },
   { id: 'branch', label: 'Branch', type: 'text' },
-  { id: 'ifsc', label: 'IFSC', type: 'text', fullWidth: true },
+  { id: 'ifsc', label: 'IFSC', type: 'text', fullWidth: true, uppercase: true },
 ]
 
 function BankDetails({ bankDetails, onChange, bare = false }) {
-  function handleChange(field) {
+  function handleChange(field, uppercase = false) {
     return (event) => {
-      onChange(field, event.target.value)
+      onChange(field, uppercase ? toUpperCaseValue(event.target.value) : event.target.value)
     }
   }
 
@@ -31,8 +32,10 @@ function BankDetails({ bankDetails, onChange, bare = false }) {
             name={field.id}
             type={field.type}
             value={bankDetails[field.id]}
-            onChange={handleChange(field.id)}
-            className={inputClassName}
+            onChange={handleChange(field.id, field.uppercase)}
+            className={`${inputClassName}${field.uppercase ? ' uppercase' : ''}`}
+            autoCapitalize={field.uppercase ? 'characters' : undefined}
+            spellCheck={field.uppercase ? false : undefined}
           />
         </div>
       ))}

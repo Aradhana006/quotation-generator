@@ -1,16 +1,22 @@
 import { inputClassName, labelClassName } from '../quotation/formStyles'
+import { toUpperCaseValue } from '../../utils/textFormat'
 
 const fields = [
   { id: 'companyName', label: 'Company Name', type: 'text' },
   { id: 'contactPerson', label: 'Contact Person', type: 'text' },
   { id: 'email', label: 'Email', type: 'email' },
   { id: 'phone', label: 'Phone', type: 'tel' },
+  { id: 'referenceNumber', label: 'Customer Reference No.', type: 'text' },
+  { id: 'gstin', label: 'GSTIN', type: 'text', uppercase: true },
   { id: 'address', label: 'Address', type: 'textarea', fullWidth: true },
 ]
 
 function CustomerFormFields({ customer, onChange }) {
-  function handleChange(field) {
-    return (event) => onChange(field, event.target.value)
+  function handleChange(field, uppercase = false) {
+    return (event) => {
+      const value = uppercase ? toUpperCaseValue(event.target.value) : event.target.value
+      onChange(field, value)
+    }
   }
 
   return (
@@ -20,8 +26,9 @@ function CustomerFormFields({ customer, onChange }) {
           id: field.id,
           name: field.id,
           value: customer[field.id] ?? '',
-          onChange: handleChange(field.id),
-          className: inputClassName,
+          onChange: handleChange(field.id, field.uppercase),
+          className: `${inputClassName}${field.uppercase ? ' uppercase' : ''}`,
+          ...(field.uppercase ? { autoCapitalize: 'characters', spellCheck: false } : {}),
         }
 
         return (

@@ -1,4 +1,4 @@
-import { inputClassName, labelClassName } from '../quotation/formStyles'
+import { inputClassName, labelClassName, priceInputClassName } from '../quotation/formStyles'
 
 function ProductFormFields({ product, onChange, errors = {} }) {
   function handleChange(field) {
@@ -51,9 +51,10 @@ function ProductFormFields({ product, onChange, errors = {} }) {
           type="number"
           min="0"
           step="0.01"
+          inputMode="decimal"
           value={product.defaultPrice}
           onChange={handleChange('defaultPrice')}
-          className={fieldClass('defaultPrice')}
+          className={`${priceInputClassName} ${errors.defaultPrice ? 'border-red-400' : ''}`}
         />
         {errors.defaultPrice && (
           <p className="mt-1 text-xs text-red-600">{errors.defaultPrice}</p>

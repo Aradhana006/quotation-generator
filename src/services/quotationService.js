@@ -4,7 +4,7 @@
  */
 
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api.js'
-import { ApiError, apiClient } from './apiClient.js'
+import { ApiError, apiClient, notifyUnauthorized } from './apiClient.js'
 
 function parseContentDispositionFilename(header, fallback) {
   if (!header) return fallback
@@ -138,13 +138,18 @@ export async function downloadQuotationPdf(id) {
   const contentType = response.headers.get('content-type') || ''
   if (!response.ok || !contentType.includes('application/pdf')) {
     let message = 'Unable to generate PDF.'
+    let code = 'PDF_GENERATION_FAILED'
     try {
       const json = await response.json()
       message = json.error?.message || message
+      code = json.error?.code || code
     } catch {
       // Keep the generic message when the server did not return JSON.
     }
-    throw new ApiError(message, 'PDF_GENERATION_FAILED', response.status)
+    if (response.status === 401) {
+      notifyUnauthorized(`${API_ENDPOINTS.quotations}/${id}/pdf`, code)
+    }
+    throw new ApiError(message, code, response.status)
   }
 
   const blob = await response.blob()

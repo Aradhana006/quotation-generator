@@ -52,7 +52,17 @@ function QuoteDetails() {
   const [revokingLink, setRevokingLink] = useState(false)
 
   async function refreshQuotation(quotationId = id) {
-    const data = await fetchQuotationById(quotationId)
+    let data
+    try {
+      data = await fetchQuotationById(quotationId)
+    } catch (err) {
+      if (err?.status === 401 || err?.code === 'UNAUTHORIZED') {
+        return null
+      }
+      setError(err?.message || 'Unable to load quotation.')
+      setQuotation(null)
+      return null
+    }
     if (!data) {
       setError('Quotation not found.')
       setQuotation(null)

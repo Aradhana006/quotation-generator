@@ -24,6 +24,7 @@ export const COMPANY_PROFILE_SHAPE = {
   email: '',
   website: '',
   gstin: '',
+  quotationNumberStart: 1,
   bankDetails: {
     accountName: '',
     accountNumber: '',

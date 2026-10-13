@@ -1,5 +1,6 @@
 export const WIZARD_STEPS = [
   { id: 'basics', label: 'Basics', hint: 'Template, dates & customer' },
+  { id: 'cover', label: 'Cover', hint: 'Cover page letter' },
   { id: 'items', label: 'Items', hint: 'Line items & pricing' },
   { id: 'terms', label: 'Terms', hint: 'Notes, terms & company' },
   { id: 'review', label: 'Review', hint: 'Preview & save' },

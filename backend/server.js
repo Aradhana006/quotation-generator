@@ -1,3 +1,4 @@
+import connectPgSimple from 'connect-pg-simple'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import express from 'express'
@@ -10,7 +11,7 @@ import publicQuotationRoutes from './routes/publicQuotationRoutes.js'
 import quotationRoutes from './routes/quotationRoutes.js'
 import templateRoutes from './routes/templateRoutes.js'
 import termRoutes from './routes/termRoutes.js'
-import { logDatabaseConnectionStatus } from './config/database.js'
+import pool, { logDatabaseConnectionStatus } from './config/database.js'
 import { getDatabaseHealth } from './controllers/healthController.js'
 import { logStorageDriver, serveTemplateFile } from './controllers/templateController.js'
 import { requireAuth } from './middleware/authMiddleware.js'
@@ -20,6 +21,9 @@ dotenv.config()
 
 const app = express()
 const PORT = Number(process.env.PORT) || 3001
+const PgSession = connectPgSimple(session)
+const isProd = process.env.NODE_ENV === 'production'
+const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '')
 
 if (!process.env.SESSION_SECRET) {
   console.warn(
@@ -27,24 +31,35 @@ if (!process.env.SESSION_SECRET) {
   )
 }
 
+// Needed so secure cookies work behind Railway/Render/Vercel proxies.
+if (isProd) {
+  app.set('trust proxy', 1)
+}
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: clientUrl,
     credentials: true,
     exposedHeaders: ['Content-Disposition'],
   }),
 )
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '20mb' }))
 app.use(
   session({
     name: 'connect.sid',
+    store: new PgSession({
+      pool,
+      tableName: 'user_sessions',
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET || 'dev-only-session-secret-change-me',
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      // Cross-site (Vercel frontend → separate API host) needs SameSite=None + Secure.
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   }),

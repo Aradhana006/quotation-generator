@@ -1,6 +1,7 @@
 import pool from '../config/database.js'
 
 function mapRowToCompany(row) {
+  const start = Number(row.quotation_number_start)
   return {
     id: row.id,
     name: row.name || '',
@@ -10,6 +11,7 @@ function mapRowToCompany(row) {
     email: row.email || '',
     website: row.website || '',
     gstin: row.gstin || '',
+    quotationNumberStart: Number.isFinite(start) && start >= 1 ? Math.floor(start) : 1,
     bankDetails: {
       accountName: row.bank_account_name || '',
       accountNumber: row.bank_account_number || '',
@@ -25,6 +27,18 @@ function mapRowToCompany(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+async function syncSequenceBaseline(companyId, start) {
+  const year = new Date().getFullYear()
+  const baseline = Math.max(0, Number(start) - 1)
+  await pool.query(
+    `INSERT INTO quotation_number_sequences (company_id, year, last_value)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (company_id, year)
+     DO UPDATE SET last_value = GREATEST(quotation_number_sequences.last_value, EXCLUDED.last_value)`,
+    [companyId, year, baseline],
+  )
 }
 
 export async function createCompany(name) {
@@ -48,15 +62,18 @@ export async function getCompanyById(companyId) {
 }
 
 export async function updateCompany(companyId, data) {
+  const startRaw = Number(data.quotationNumberStart)
+  const quotationNumberStart = Number.isFinite(startRaw) && startRaw >= 1 ? Math.floor(startRaw) : 1
+
   const result = await pool.query(
     `UPDATE companies SET
        name = $1, logo = $2, address = $3, phone = $4, email = $5,
-       website = $6, gstin = $7,
-       bank_account_name = $8, bank_account_number = $9,
-       bank_name = $10, bank_branch = $11, bank_ifsc = $12,
-       signatory_name = $13, signatory_designation = $14, signatory_signature = $15,
+       website = $6, gstin = $7, quotation_number_start = $8,
+       bank_account_name = $9, bank_account_number = $10,
+       bank_name = $11, bank_branch = $12, bank_ifsc = $13,
+       signatory_name = $14, signatory_designation = $15, signatory_signature = $16,
        updated_at = NOW()
-     WHERE id = $16
+     WHERE id = $17
      RETURNING *`,
     [
       data.name?.trim() || '',
@@ -65,17 +82,23 @@ export async function updateCompany(companyId, data) {
       data.phone?.trim() || null,
       data.email?.trim() || null,
       data.website?.trim() || null,
-      data.gstin?.trim() || null,
+      data.gstin?.trim()?.toUpperCase() || null,
+      quotationNumberStart,
       data.bankDetails?.accountName?.trim() || null,
       data.bankDetails?.accountNumber?.trim() || null,
       data.bankDetails?.bankName?.trim() || null,
       data.bankDetails?.branch?.trim() || null,
-      data.bankDetails?.ifsc?.trim() || null,
+      data.bankDetails?.ifsc?.trim()?.toUpperCase() || null,
       data.signatory?.name?.trim() || null,
       data.signatory?.designation?.trim() || 'Authorised Signatory',
       data.signatory?.signature || null,
       companyId,
     ],
   )
-  return result.rows[0] ? mapRowToCompany(result.rows[0]) : null
+
+  const company = result.rows[0] ? mapRowToCompany(result.rows[0]) : null
+  if (company) {
+    await syncSequenceBaseline(companyId, company.quotationNumberStart)
+  }
+  return company
 }

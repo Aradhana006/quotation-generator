@@ -6,6 +6,7 @@ export const EMPTY_COMPANY_PROFILE = {
   email: '',
   website: '',
   gstin: '',
+  quotationNumberStart: 1,
   bankDetails: {
     accountName: '',
     accountNumber: '',
@@ -27,6 +28,8 @@ export const EMPTY_SAVED_CUSTOMER = {
   email: '',
   phone: '',
   address: '',
+  referenceNumber: '',
+  gstin: '',
 }
 
 export const EMPTY_PRODUCT = {

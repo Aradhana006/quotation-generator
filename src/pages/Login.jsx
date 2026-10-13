@@ -5,7 +5,7 @@ import { inputClassName, labelClassName } from '../components/quotation/formStyl
 import { useAuth } from '../context/AuthContext'
 
 function Login() {
-  const { login, isAuthenticated, isLoading } = useAuth()
+  const { login, isAuthenticated, isLoading, error: authError, setError: setAuthError } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from || '/'
@@ -33,6 +33,7 @@ function Login() {
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
+    setAuthError('')
     setIsSubmitting(true)
 
     try {
@@ -44,6 +45,8 @@ function Login() {
       setIsSubmitting(false)
     }
   }
+
+  const displayError = error || authError
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#e2e8f0_0%,_#f8fafc_45%,_#f1f5f9_100%)] px-4">
@@ -59,9 +62,9 @@ function Login() {
             </div>
           )}
 
-          {error && (
+          {displayError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+              {displayError}
             </div>
           )}
 

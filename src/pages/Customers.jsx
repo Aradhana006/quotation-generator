@@ -11,6 +11,8 @@ const emptyFormCustomer = {
   email: '',
   phone: '',
   address: '',
+  referenceNumber: '',
+  gstin: '',
 }
 
 function Customers() {
@@ -37,6 +39,8 @@ function Customers() {
       email: customer.email,
       phone: customer.phone,
       address: customer.address,
+      referenceNumber: customer.referenceNumber || '',
+      gstin: customer.gstin || '',
     })
     setSaveError('')
     setIsModalOpen(true)

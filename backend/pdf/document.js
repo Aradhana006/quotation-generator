@@ -129,11 +129,12 @@ export class QuotationPdfDocument {
 
   tryDrawImage(source, x, y, options) {
     const buffer = decodeDataUrl(source)
-    if (!buffer) return false
+    if (!buffer || buffer.length < 8) return false
     try {
       this.doc.image(buffer, x, y, options)
       return true
-    } catch {
+    } catch (error) {
+      console.warn('PDF image embed failed:', error.message)
       return false
     }
   }

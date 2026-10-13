@@ -6,7 +6,7 @@ import {
   getItemTaxableAmount,
   TAX_RATE_OPTIONS,
 } from '../../utils/quotationCalculations'
-import { inputClassName, labelClassName } from './formStyles'
+import { inputClassName, labelClassName, priceInputClassName } from './formStyles'
 
 function QuoteItem({
   item,
@@ -116,9 +116,10 @@ function QuoteItem({
             type="number"
             min="0"
             step="0.01"
+            inputMode="decimal"
             value={item.unitPrice}
             onChange={handleChange('unitPrice')}
-            className={`${inputClassName} ${errors.unitPrice ? 'border-red-400' : ''}`}
+            className={`${priceInputClassName} ${errors.unitPrice ? 'border-red-400' : ''}`}
           />
           {errors.unitPrice && (
             <p className="mt-1 text-xs text-red-600">{errors.unitPrice}</p>
@@ -150,9 +151,10 @@ function QuoteItem({
             type="number"
             min="0"
             step="0.01"
+            inputMode="decimal"
             value={item.discountValue}
             onChange={handleChange('discountValue')}
-            className={inputClassName}
+            className={priceInputClassName}
           />
         </div>
 

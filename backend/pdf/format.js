@@ -34,12 +34,21 @@ export function sanitizePdfFilename(quotation) {
   return raw.replace(/[^\w.\-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 120)
 }
 
+/** True when the data URL is a raster image PDFKit can embed (PNG/JPEG). */
+export function isPdfDrawableImage(value) {
+  if (!value || typeof value !== 'string') return false
+  return /^data:image\/(png|jpe?g)(;charset=[^;]+)?;base64,/i.test(value.trim())
+}
+
 export function decodeDataUrl(value) {
   if (!value || typeof value !== 'string') return null
-  const match = value.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/)
+  const trimmed = value.trim()
+  // PDFKit only embeds PNG/JPEG reliably — reject SVG/PDF/WebP data URLs.
+  const match = trimmed.match(/^data:image\/(png|jpe?g)(?:;charset=[^;]+)?;base64,([\s\S]+)$/i)
   if (!match) return null
   try {
-    return Buffer.from(match[1], 'base64')
+    const base64 = match[2].replace(/\s+/g, '')
+    return Buffer.from(base64, 'base64')
   } catch {
     return null
   }

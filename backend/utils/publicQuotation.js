@@ -99,7 +99,10 @@ export function toPublicQuotation(quotation, customTemplate = null) {
     deliveryTerms: quotation.deliveryTerms || '',
     bankDetails: quotation.bankDetails || {},
     signature: quotation.signature || {},
-    coverLetter: quotation.coverLetter || { enabled: false },
+    coverLetter: {
+      enabled: true,
+      ...(quotation.coverLetter || {}),
+    },
     quotationDetails: quotation.quotationDetails || {},
     selectedTemplate: quotation.selectedTemplate || { type: 'builtin', id: 'modern' },
     customTemplate: customTemplate

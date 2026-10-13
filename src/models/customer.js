@@ -17,6 +17,8 @@ export const CUSTOMER_SHAPE = {
   email: '',
   phone: '',
   address: '',
+  referenceNumber: '',
+  gstin: '',
 }
 
 export const EMPTY_SAVED_CUSTOMER = { ...CUSTOMER_SHAPE }
@@ -41,4 +43,6 @@ export const EMPTY_CUSTOMER = {
   email: '',
   phone: '',
   address: '',
+  referenceNumber: '',
+  gstin: '',
 }

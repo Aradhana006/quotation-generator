@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { inputClassName, labelClassName } from '../quotation/formStyles'
-import { readImageFile } from '../../utils/dataMappers'
+import { ACCEPTED_IMAGE_ACCEPT, readImageFile } from '../../utils/dataMappers'
+import { toUpperCaseValue } from '../../utils/textFormat'
 
 function CompanyProfileForm({
   profile,
@@ -7,12 +9,21 @@ function CompanyProfileForm({
   onBankChange,
   onSignatoryChange,
 }) {
+  const [logoError, setLogoError] = useState('')
+  const [signatureError, setSignatureError] = useState('')
+
   function handleChange(field) {
-    return (event) => onProfileChange(field, event.target.value)
+    return (event) => {
+      const value = field === 'gstin' ? toUpperCaseValue(event.target.value) : event.target.value
+      onProfileChange(field, value)
+    }
   }
 
   function handleBankField(field) {
-    return (event) => onBankChange(field, event.target.value)
+    return (event) => {
+      const value = field === 'ifsc' ? toUpperCaseValue(event.target.value) : event.target.value
+      onBankChange(field, value)
+    }
   }
 
   function handleSignatoryField(field) {
@@ -21,20 +32,36 @@ function CompanyProfileForm({
 
   function handleLogoChange(event) {
     const file = event.target.files?.[0]
+    setLogoError('')
     if (!file) {
       onProfileChange('logo', '')
       return
     }
-    readImageFile(file, (result) => onProfileChange('logo', result))
+    readImageFile(
+      file,
+      (result) => onProfileChange('logo', result),
+      (error) => {
+        setLogoError(error.message || 'Unable to use this image.')
+        event.target.value = ''
+      },
+    )
   }
 
   function handleSignatureChange(event) {
     const file = event.target.files?.[0]
+    setSignatureError('')
     if (!file) {
       onSignatoryChange('signature', '')
       return
     }
-    readImageFile(file, (result) => onSignatoryChange('signature', result))
+    readImageFile(
+      file,
+      (result) => onSignatoryChange('signature', result),
+      (error) => {
+        setSignatureError(error.message || 'Unable to use this image.')
+        event.target.value = ''
+      },
+    )
   }
 
   return (
@@ -64,11 +91,43 @@ function CompanyProfileForm({
           </div>
           <div>
             <label htmlFor="gstin" className={labelClassName}>GSTIN</label>
-            <input id="gstin" value={profile.gstin} onChange={handleChange('gstin')} className={inputClassName} />
+            <input
+              id="gstin"
+              value={profile.gstin}
+              onChange={handleChange('gstin')}
+              className={`${inputClassName} uppercase`}
+              autoCapitalize="characters"
+              spellCheck={false}
+            />
+          </div>
+          <div>
+            <label htmlFor="quotationNumberStart" className={labelClassName}>
+              Quotation number starts from
+            </label>
+            <input
+              id="quotationNumberStart"
+              type="number"
+              min={1}
+              step={1}
+              value={profile.quotationNumberStart ?? 1}
+              onChange={handleChange('quotationNumberStart')}
+              className={inputClassName}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Next finalized quotation uses this sequence (format QT-YYYY-NNN). Drafts do not consume a number.
+            </p>
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="logo" className={labelClassName}>Logo</label>
-            <input id="logo" type="file" accept="image/*" onChange={handleLogoChange} className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700" />
+            <input
+              id="logo"
+              type="file"
+              accept={ACCEPTED_IMAGE_ACCEPT}
+              onChange={handleLogoChange}
+              className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700"
+            />
+            {logoError && <p className="mt-2 text-sm text-red-600">{logoError}</p>}
+            <p className="mt-1 text-xs text-slate-500">PNG or JPG only (PDF/SVG will not appear on generated PDFs).</p>
             {profile.logo && (
               <img src={profile.logo} alt="Company logo" className="mt-3 h-16 w-auto rounded border border-slate-200 object-contain p-2" />
             )}
@@ -97,7 +156,14 @@ function CompanyProfileForm({
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="ifsc" className={labelClassName}>IFSC</label>
-            <input id="ifsc" value={profile.bankDetails.ifsc} onChange={handleBankField('ifsc')} className={inputClassName} />
+            <input
+              id="ifsc"
+              value={profile.bankDetails.ifsc}
+              onChange={handleBankField('ifsc')}
+              className={`${inputClassName} uppercase`}
+              autoCapitalize="characters"
+              spellCheck={false}
+            />
           </div>
         </div>
       </section>
@@ -115,7 +181,15 @@ function CompanyProfileForm({
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="signature" className={labelClassName}>Signature Image</label>
-            <input id="signature" type="file" accept="image/*" onChange={handleSignatureChange} className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700" />
+            <input
+              id="signature"
+              type="file"
+              accept={ACCEPTED_IMAGE_ACCEPT}
+              onChange={handleSignatureChange}
+              className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700"
+            />
+            {signatureError && <p className="mt-2 text-sm text-red-600">{signatureError}</p>}
+            <p className="mt-1 text-xs text-slate-500">PNG or JPG only (PDF files cannot be used as a signature).</p>
             {profile.signatory.signature && (
               <img src={profile.signatory.signature} alt="Signature" className="mt-3 h-16 w-auto rounded border border-slate-200 object-contain p-2" />
             )}

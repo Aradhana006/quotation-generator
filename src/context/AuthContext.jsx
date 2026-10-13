@@ -4,19 +4,29 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import * as authService from '../services/authService.js'
+import { setUnauthorizedHandler } from '../services/apiClient.js'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [company, setCompany] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const handlingUnauthorized = useRef(false)
 
   const isAuthenticated = Boolean(user && company)
+
+  const clearAuthState = useCallback(() => {
+    setUser(null)
+    setCompany(null)
+  }, [])
 
   const refreshAuth = useCallback(async () => {
     setIsLoading(true)
@@ -26,16 +36,30 @@ export function AuthProvider({ children }) {
       setUser(data.user)
       setCompany(data.company)
     } catch {
-      setUser(null)
-      setCompany(null)
+      clearAuthState()
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [clearAuthState])
 
   useEffect(() => {
     refreshAuth()
   }, [refreshAuth])
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (handlingUnauthorized.current) return
+      handlingUnauthorized.current = true
+      clearAuthState()
+      setError('Your session expired. Please log in again.')
+      navigate('/login', { replace: true })
+      window.setTimeout(() => {
+        handlingUnauthorized.current = false
+      }, 500)
+    })
+
+    return () => setUnauthorizedHandler(null)
+  }, [clearAuthState, navigate])
 
   async function login(credentials) {
     setError('')
@@ -56,8 +80,7 @@ export function AuthProvider({ children }) {
     try {
       await authService.logout()
     } finally {
-      setUser(null)
-      setCompany(null)
+      clearAuthState()
     }
   }
 

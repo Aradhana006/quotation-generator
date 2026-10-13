@@ -53,9 +53,24 @@ function buildAuthPayload(user, company) {
   }
 }
 
-async function authenticateSession(req, userId, companyId) {
-  req.session.userId = userId
-  req.session.companyId = companyId
+function authenticateSession(req, userId, companyId) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((error) => {
+      if (error) {
+        reject(error)
+        return
+      }
+      req.session.userId = userId
+      req.session.companyId = companyId
+      req.session.save((saveError) => {
+        if (saveError) {
+          reject(saveError)
+          return
+        }
+        resolve()
+      })
+    })
+  })
 }
 
 export async function register(req, res) {

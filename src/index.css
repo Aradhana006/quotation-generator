@@ -12,6 +12,32 @@ body {
   width: 100%;
   max-width: 210mm;
   min-height: 297mm;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
   page-break-after: always;
   break-after: page;
+  display: flex;
+  flex-direction: column;
+}
+
+.quote-preview-page--cover {
+  justify-content: flex-start;
+}
+
+.quote-preview-page--content {
+  /* Keep quotation content denser so it fits on one A4 page in preview */
+  font-size: 0.92rem;
+}
+
+/* Hide number input spinner arrows for price-style fields */
+.input-no-spinner::-webkit-outer-spin-button,
+.input-no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-no-spinner[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

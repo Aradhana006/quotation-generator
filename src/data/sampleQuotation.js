@@ -25,7 +25,7 @@ export const SAMPLE_QUOTATION = {
     currency: 'INR',
   },
   coverLetter: {
-    enabled: true,
+    enabled: true, // every quotation includes a cover page
     greeting: 'Dear Sir,',
     kindAttention: 'Mr. Ramesh Kumar, Projects',
     subject: 'Quotation for Edge Gateway Hardware',

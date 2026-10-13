@@ -105,7 +105,7 @@ export function isMappedFieldVisible(mappedField, quotation) {
   if (!mappedField || mappedField.visibility === 'always') return true
 
   const key = mappedField.field
-  if (key.startsWith('coverLetter.')) return Boolean(quotation.coverLetter?.enabled)
+  if (key.startsWith('coverLetter.')) return true
   if (key === 'company.gstin' || key === 'pricing.tax' || key === 'items.tax') {
     return Number(quotation.summary?.taxAmount) > 0
   }

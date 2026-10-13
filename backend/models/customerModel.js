@@ -9,6 +9,8 @@ function mapRowToClient(row) {
     email: row.email || '',
     phone: row.phone || '',
     address: row.address || '',
+    referenceNumber: row.reference_number || '',
+    gstin: row.gstin || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -17,8 +19,8 @@ function mapRowToClient(row) {
 export async function createCustomer(customerData, companyId) {
   const result = await pool.query(
     `INSERT INTO customers
-      (company_id, company_name, contact_person, email, phone, address)
-     VALUES ($1, $2, $3, $4, $5, $6)
+      (company_id, company_name, contact_person, email, phone, address, reference_number, gstin)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       companyId,
@@ -27,6 +29,8 @@ export async function createCustomer(customerData, companyId) {
       customerData.email?.trim() || null,
       customerData.phone?.trim() || null,
       customerData.address?.trim() || null,
+      customerData.referenceNumber?.trim() || null,
+      customerData.gstin?.trim()?.toUpperCase() || null,
     ],
   )
   return mapRowToClient(result.rows[0])
@@ -52,8 +56,9 @@ export async function updateCustomer(id, customerData, companyId) {
   const result = await pool.query(
     `UPDATE customers SET
        company_name = $1, contact_person = $2, email = $3,
-       phone = $4, address = $5, updated_at = NOW()
-     WHERE id = $6 AND company_id = $7
+       phone = $4, address = $5, reference_number = $6, gstin = $7,
+       updated_at = NOW()
+     WHERE id = $8 AND company_id = $9
      RETURNING *`,
     [
       customerData.companyName.trim(),
@@ -61,6 +66,8 @@ export async function updateCustomer(id, customerData, companyId) {
       customerData.email?.trim() || null,
       customerData.phone?.trim() || null,
       customerData.address?.trim() || null,
+      customerData.referenceNumber?.trim() || null,
+      customerData.gstin?.trim()?.toUpperCase() || null,
       id,
       companyId,
     ],

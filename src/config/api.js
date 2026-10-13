@@ -1,5 +1,5 @@
-/** API base URL — points to Express backend */
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+/** API base URL — same-origin /api via Vite proxy in dev (avoids cross-port cookie issues) */
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 export const API_ENDPOINTS = {
   auth: {

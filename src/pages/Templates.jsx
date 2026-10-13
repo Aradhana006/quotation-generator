@@ -4,6 +4,7 @@ import { useTemplates } from '../context/TemplateContext'
 import PageContainer from '../components/PageContainer'
 import AddCustomTemplateModal from '../components/templates/AddCustomTemplateModal'
 import TemplateCard from '../components/templates/TemplateCard'
+import TemplateViewModal from '../components/templates/TemplateViewModal'
 
 function Templates() {
   const navigate = useNavigate()
@@ -16,18 +17,17 @@ function Templates() {
     addCustomTemplate,
     updateCustomTemplate,
     deleteCustomTemplate,
-    selectTemplate,
   } = useTemplates()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState(null)
+  const [viewingTemplate, setViewingTemplate] = useState(null)
   const [actionError, setActionError] = useState('')
 
   const builtInTemplates = templates.filter((template) => template.type === 'builtin')
 
-  function handleUseTemplate(templateSelection) {
-    selectTemplate(templateSelection)
-    navigate('/quotations/create')
+  function handleViewTemplate(template) {
+    setViewingTemplate(template)
   }
 
   function handleEdit(template) {
@@ -58,7 +58,7 @@ function Templates() {
   return (
     <PageContainer
       title="Templates"
-      description="Choose a built-in layout or upload your own quotation format."
+      description="Preview built-in layouts or upload your own quotation format."
     >
       {templatesLoading && (
         <p className="mb-4 text-sm text-slate-500">Loading templates...</p>
@@ -101,7 +101,7 @@ function Templates() {
               selected={
                 selectedTemplate.type === 'builtin' && selectedTemplate.id === template.id
               }
-              onUse={handleUseTemplate}
+              onView={handleViewTemplate}
             />
           ))}
         </div>
@@ -124,7 +124,7 @@ function Templates() {
                 selected={
                   selectedTemplate.type === 'custom' && selectedTemplate.id === template.id
                 }
-                onUse={handleUseTemplate}
+                onView={handleViewTemplate}
                 onEdit={handleEdit}
                 onEditLayout={handleEditLayout}
                 onDelete={handleDelete}
@@ -144,6 +144,12 @@ function Templates() {
           return created
         }}
         onUpdate={updateCustomTemplate}
+      />
+
+      <TemplateViewModal
+        template={viewingTemplate}
+        customTemplates={customTemplates}
+        onClose={() => setViewingTemplate(null)}
       />
     </PageContainer>
   )

@@ -18,6 +18,22 @@ export class ApiError extends Error {
   }
 }
 
+let unauthorizedHandler = null
+
+/** Register a callback when a protected API call returns 401. */
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = typeof handler === 'function' ? handler : null
+}
+
+function shouldHandleUnauthorized(path) {
+  return !String(path || '').startsWith('/auth/')
+}
+
+export function notifyUnauthorized(path = '', code = 'UNAUTHORIZED') {
+  if (code !== 'UNAUTHORIZED' || !shouldHandleUnauthorized(path)) return
+  unauthorizedHandler?.()
+}
+
 async function request(method, path, body = null, { full = false } = {}) {
   const options = {
     method,
@@ -50,9 +66,13 @@ async function request(method, path, body = null, { full = false } = {}) {
   }
 
   if (!response.ok || json.success === false) {
+    const code = json.error?.code || 'INTERNAL_ERROR'
+    if (response.status === 401) {
+      notifyUnauthorized(path, code)
+    }
     throw new ApiError(
       json.error?.message || 'Request failed.',
-      json.error?.code || 'INTERNAL_ERROR',
+      code,
       response.status,
     )
   }
@@ -92,10 +112,14 @@ function requestForm(method, path, formData, onProgress) {
       }
 
       if (xhr.status >= 400 || json.success === false) {
+        const code = json.error?.code || 'INTERNAL_ERROR'
+        if (xhr.status === 401) {
+          notifyUnauthorized(path, code)
+        }
         reject(
           new ApiError(
             json.error?.message || 'Request failed.',
-            json.error?.code || 'INTERNAL_ERROR',
+            code,
             xhr.status,
           ),
         )

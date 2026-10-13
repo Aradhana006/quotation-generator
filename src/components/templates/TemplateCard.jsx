@@ -3,7 +3,7 @@ import TemplatePreviewThumbnail from './TemplatePreviewThumbnail'
 function TemplateCard({
   template,
   selected = false,
-  onUse,
+  onView,
   onEdit,
   onEditLayout,
   onDelete,
@@ -16,9 +16,14 @@ function TemplateCard({
         selected ? 'border-slate-900' : 'border-slate-200'
       }`}
     >
-      <div className="p-4">
+      <button
+        type="button"
+        onClick={() => onView?.(template)}
+        className="block w-full p-4 text-left transition hover:bg-slate-50"
+        title="View template fullscreen"
+      >
         <TemplatePreviewThumbnail template={template} />
-      </div>
+      </button>
       <div className="border-t border-slate-200 p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -37,10 +42,10 @@ function TemplateCard({
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => onUse({ type: template.type, id: template.id })}
+            onClick={() => onView?.(template)}
             className="flex-1 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
           >
-            Use Template
+            View Template
           </button>
           {isCustom && (
             <>

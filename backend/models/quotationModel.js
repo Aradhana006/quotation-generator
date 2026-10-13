@@ -23,14 +23,14 @@ function formatDate(date) {
 
 function emptyCoverLetter() {
   return {
-    enabled: false,
-    greeting: '',
+    enabled: true,
+    greeting: 'Dear Sir,',
     kindAttention: '',
     subject: '',
-    message: '',
-    closing: '',
+    message: 'Thank you for your enquiry. Please find our quotation for the requested requirements.',
+    closing: 'Thanking you,',
     signOffCompany: '',
-    signOffTitle: '',
+    signOffTitle: 'Authorised Signatory',
   }
 }
 
@@ -64,10 +64,18 @@ function mapListRow(row) {
       grandTotal: Number(row.grand_total),
     },
     revisions: Array.isArray(row.revisions) ? row.revisions : [],
-    permissions: buildPermissions({
-      status: row.status,
-      archivedAt: row.archived_at || null,
-    }),
+    permissions: (() => {
+      const revisions = Array.isArray(row.revisions) ? row.revisions : []
+      const latestDraft = [...revisions].reverse().find((revision) => revision.status === 'draft')
+      return buildPermissions(
+        {
+          id: row.id,
+          status: row.status,
+          archivedAt: row.archived_at || null,
+        },
+        { latestDraftId: latestDraft?.id || null },
+      )
+    })(),
   }
 }
 
@@ -94,24 +102,28 @@ function mapHeaderRow(row) {
       email: row.customer_email || '',
       phone: row.customer_phone || '',
       address: row.customer_address || '',
+      gstin: row.customer_gstin_snapshot || '',
+      referenceNumber: row.customer_reference_snapshot || '',
     },
     quotationDetails: {
       quotationNumber: row.quotation_number,
       quotationDate: formatDate(row.quotation_date),
+      validityDays: row.validity_days == null ? '' : Number(row.validity_days),
       validUntil: formatDate(row.valid_until),
       referenceNumber: row.reference_number || '',
       subject: row.subject || '',
       currency: row.currency || 'INR',
     },
     coverLetter: {
-      enabled: Boolean(row.cover_letter_enabled),
-      greeting: row.cover_letter_greeting || '',
+      // Cover page is always included on every quotation.
+      enabled: true,
+      greeting: row.cover_letter_greeting || 'Dear Sir,',
       kindAttention: row.cover_letter_attention || '',
       subject: row.cover_letter_subject || '',
       message: row.cover_letter_message || '',
-      closing: row.cover_letter_closing || '',
+      closing: row.cover_letter_closing || 'Thanking you,',
       signOffCompany: row.cover_letter_sign_off_company || '',
-      signOffTitle: row.cover_letter_sign_off_title || '',
+      signOffTitle: row.cover_letter_sign_off_title || 'Authorised Signatory',
     },
     notes: row.notes || '',
     paymentTerms: row.payment_terms || '',
@@ -335,13 +347,31 @@ export async function getQuotationByIdUnscoped(id) {
   return loadChildren(mapHeaderRow(result.rows[0]))
 }
 
+function isDraftQuotationNumber(value) {
+  return String(value || '').toUpperCase().startsWith('DRAFT-')
+}
+
+function makeDraftQuotationNumber() {
+  return `DRAFT-${crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`
+}
+
+async function getQuotationNumberStart(companyId, db = pool) {
+  const result = await db.query(
+    `SELECT quotation_number_start FROM companies WHERE id = $1`,
+    [companyId],
+  )
+  const start = Number(result.rows[0]?.quotation_number_start)
+  return Number.isFinite(start) && start >= 1 ? Math.floor(start) : 1
+}
+
 export async function peekNextQuotationNumber(companyId) {
   const year = new Date().getFullYear()
+  const start = await getQuotationNumberStart(companyId)
   const result = await pool.query(
     `SELECT last_value FROM quotation_number_sequences WHERE company_id = $1 AND year = $2`,
     [companyId, year],
   )
-  const next = (result.rows[0]?.last_value || 0) + 1
+  const next = result.rows[0] ? Number(result.rows[0].last_value) + 1 : start
   return `QT-${year}-${String(next).padStart(3, '0')}`
 }
 
@@ -351,13 +381,14 @@ export async function generateQuotationNumber(excludeId = null, companyId) {
 
 async function allocateQuotationNumber(client, companyId) {
   const year = new Date().getFullYear()
+  const start = await getQuotationNumberStart(companyId, client)
   const result = await client.query(
     `INSERT INTO quotation_number_sequences (company_id, year, last_value)
-     VALUES ($1, $2, 1)
+     VALUES ($1, $2, $3)
      ON CONFLICT (company_id, year)
      DO UPDATE SET last_value = quotation_number_sequences.last_value + 1
      RETURNING last_value`,
-    [companyId, year],
+    [companyId, year, start],
   )
   return `QT-${year}-${String(result.rows[0].last_value).padStart(3, '0')}`
 }
@@ -397,9 +428,14 @@ function buildHeaderValues(data, companyId, totals) {
   return {
     companyId,
     customerId: data.resolvedCustomerId || null,
-    quotationNumber: details.quotationNumber.trim(),
+    quotationNumber: details.quotationNumber?.trim() || '',
     quotationDate: details.quotationDate || null,
     validUntil: details.validUntil || null,
+    validityDays: (() => {
+      if (details.validityDays === '' || details.validityDays == null) return null
+      const days = Number(details.validityDays)
+      return Number.isFinite(days) ? days : null
+    })(),
     referenceNumber: details.referenceNumber?.trim() || null,
     subject: details.subject?.trim() || null,
     currency: details.currency || 'INR',
@@ -414,14 +450,16 @@ function buildHeaderValues(data, companyId, totals) {
     customerEmail: customer.email?.trim() || null,
     customerPhone: customer.phone?.trim() || null,
     customerAddress: customer.address?.trim() || null,
+    customerGstin: customer.gstin?.trim()?.toUpperCase() || null,
+    customerReference: customer.referenceNumber?.trim() || null,
     companyName: company.name?.trim() || null,
     companyLogo: company.logo || null,
     companyAddress: company.address?.trim() || null,
     companyPhone: company.phone?.trim() || null,
     companyEmail: company.email?.trim() || null,
     companyWebsite: company.website?.trim() || null,
-    companyGstin: company.gstin?.trim() || null,
-    coverEnabled: Boolean(cover.enabled),
+    companyGstin: company.gstin?.trim()?.toUpperCase() || null,
+    coverEnabled: true,
     coverGreeting: cover.greeting || null,
     coverAttention: cover.kindAttention || null,
     coverSubject: cover.subject || null,
@@ -433,7 +471,7 @@ function buildHeaderValues(data, companyId, totals) {
     bankAccountNumber: bank.accountNumber?.trim() || null,
     bankName: bank.bankName?.trim() || null,
     bankBranch: bank.branch?.trim() || null,
-    bankIfsc: bank.ifsc?.trim() || null,
+    bankIfsc: bank.ifsc?.trim()?.toUpperCase() || null,
     signatureName: signature.name?.trim() || null,
     signatureDesignation: signature.designation?.trim() || null,
     signatureImage: signature.signatureImage || null,
@@ -500,6 +538,7 @@ const HEADER_COLUMNS = `
   reference_number, subject, currency, status, notes, payment_terms, delivery_terms,
   template_type, template_id,
   customer_company_name, customer_contact_person, customer_email, customer_phone, customer_address,
+  customer_gstin_snapshot, customer_reference_snapshot, validity_days,
   company_name_snapshot, company_logo_snapshot, company_address_snapshot, company_phone_snapshot,
   company_email_snapshot, company_website_snapshot, company_gstin_snapshot,
   cover_letter_enabled, cover_letter_greeting, cover_letter_attention, cover_letter_subject,
@@ -532,6 +571,9 @@ function headerParams(header) {
     header.customerEmail,
     header.customerPhone,
     header.customerAddress,
+    header.customerGstin,
+    header.customerReference,
+    header.validityDays,
     header.companyName,
     header.companyLogo,
     header.companyAddress,
@@ -581,10 +623,15 @@ export async function createQuotation(data, companyId, actor = {}) {
   try {
     await client.query('BEGIN')
 
-    if (!header.quotationNumber) {
-      header.quotationNumber = await allocateQuotationNumber(client, companyId)
+    if (header.status === 'sent') {
+      if (!header.quotationNumber || isDraftQuotationNumber(header.quotationNumber)) {
+        header.quotationNumber = await allocateQuotationNumber(client, companyId)
+      } else {
+        await syncSequenceIfNeeded(client, companyId, header.quotationNumber)
+      }
     } else {
-      await syncSequenceIfNeeded(client, companyId, header.quotationNumber)
+      // Drafts do not consume sequence numbers — assigned on finalize.
+      header.quotationNumber = makeDraftQuotationNumber()
     }
 
     const inserted = await client.query(
@@ -592,7 +639,7 @@ export async function createQuotation(data, companyId, actor = {}) {
        VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
          $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,
-         $41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51
+         $41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54
        )
        RETURNING id`,
       headerParams(header),
@@ -652,6 +699,16 @@ export async function updateQuotation(id, data, companyId, actor = {}) {
   try {
     await client.query('BEGIN')
 
+    if (header.status === 'sent') {
+      if (!header.quotationNumber || isDraftQuotationNumber(header.quotationNumber)) {
+        header.quotationNumber = await allocateQuotationNumber(client, companyId)
+      } else {
+        await syncSequenceIfNeeded(client, companyId, header.quotationNumber)
+      }
+    } else if (!header.quotationNumber || !isDraftQuotationNumber(header.quotationNumber)) {
+      header.quotationNumber = makeDraftQuotationNumber()
+    }
+
     const updated = await client.query(
       `UPDATE quotations SET
          customer_id=$2, quotation_number=$3, quotation_date=$4, valid_until=$5,
@@ -659,18 +716,19 @@ export async function updateQuotation(id, data, companyId, actor = {}) {
          payment_terms=$11, delivery_terms=$12, template_type=$13, template_id=$14,
          customer_company_name=$15, customer_contact_person=$16, customer_email=$17,
          customer_phone=$18, customer_address=$19,
-         company_name_snapshot=$20, company_logo_snapshot=$21, company_address_snapshot=$22,
-         company_phone_snapshot=$23, company_email_snapshot=$24, company_website_snapshot=$25,
-         company_gstin_snapshot=$26,
-         cover_letter_enabled=$27, cover_letter_greeting=$28, cover_letter_attention=$29,
-         cover_letter_subject=$30, cover_letter_message=$31, cover_letter_closing=$32,
-         cover_letter_sign_off_company=$33, cover_letter_sign_off_title=$34,
-         bank_account_name_snapshot=$35, bank_account_number_snapshot=$36, bank_name_snapshot=$37,
-         bank_branch_snapshot=$38, bank_ifsc_snapshot=$39,
-         signature_name_snapshot=$40, signature_designation_snapshot=$41, signature_image_snapshot=$42,
-         subtotal=$43, total_discount=$44, taxable_amount=$45, total_tax=$46,
-         additional_charges_total=$47, grand_total=$48, updated_at=NOW()
-       WHERE id=$1 AND company_id=$49
+         customer_gstin_snapshot=$20, customer_reference_snapshot=$21, validity_days=$22,
+         company_name_snapshot=$23, company_logo_snapshot=$24, company_address_snapshot=$25,
+         company_phone_snapshot=$26, company_email_snapshot=$27, company_website_snapshot=$28,
+         company_gstin_snapshot=$29,
+         cover_letter_enabled=$30, cover_letter_greeting=$31, cover_letter_attention=$32,
+         cover_letter_subject=$33, cover_letter_message=$34, cover_letter_closing=$35,
+         cover_letter_sign_off_company=$36, cover_letter_sign_off_title=$37,
+         bank_account_name_snapshot=$38, bank_account_number_snapshot=$39, bank_name_snapshot=$40,
+         bank_branch_snapshot=$41, bank_ifsc_snapshot=$42,
+         signature_name_snapshot=$43, signature_designation_snapshot=$44, signature_image_snapshot=$45,
+         subtotal=$46, total_discount=$47, taxable_amount=$48, total_tax=$49,
+         additional_charges_total=$50, grand_total=$51, updated_at=NOW()
+       WHERE id=$1 AND company_id=$52
        RETURNING id`,
       [
         id,
@@ -692,6 +750,9 @@ export async function updateQuotation(id, data, companyId, actor = {}) {
         header.customerEmail,
         header.customerPhone,
         header.customerAddress,
+        header.customerGstin,
+        header.customerReference,
+        header.validityDays,
         header.companyName,
         header.companyLogo,
         header.companyAddress,
@@ -852,21 +913,40 @@ export async function updateQuotationStatus(id, status, companyId, actor = {}) {
     throw error
   }
 
-  const result = await pool.query(
-    `UPDATE quotations SET status = $1, updated_at = NOW()
-     WHERE id = $2 AND company_id = $3
-     RETURNING id, status`,
-    [status, id, companyId],
-  )
-  await recordEvent(pool, {
-    companyId,
-    quotationId: id,
-    quoteGroupId: existing.quoteGroupId,
-    userId: actor.userId,
-    action: 'status_changed',
-    metadata: { fromStatus: existing.status, toStatus: status },
-  })
-  return result.rows[0] || null
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    let quotationNumber = existing.quotationDetails.quotationNumber
+    if (status === 'sent' && isDraftQuotationNumber(quotationNumber)) {
+      quotationNumber = await allocateQuotationNumber(client, companyId)
+    }
+
+    const result = await client.query(
+      `UPDATE quotations SET status = $1, quotation_number = $2, updated_at = NOW()
+       WHERE id = $3 AND company_id = $4
+       RETURNING id, status, quotation_number`,
+      [status, quotationNumber, id, companyId],
+    )
+    await recordEvent(client, {
+      companyId,
+      quotationId: id,
+      quoteGroupId: existing.quoteGroupId,
+      userId: actor.userId,
+      action: 'status_changed',
+      metadata: {
+        fromStatus: existing.status,
+        toStatus: status,
+        quotationNumber,
+      },
+    })
+    await client.query('COMMIT')
+    return result.rows[0] || null
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function reviseQuotation(id, companyId, actor = {}) {
@@ -913,6 +993,7 @@ export async function reviseQuotation(id, companyId, actor = {}) {
          reference_number, subject, currency, 'draft', notes, payment_terms, delivery_terms,
          template_type, template_id,
          customer_company_name, customer_contact_person, customer_email, customer_phone, customer_address,
+         customer_gstin_snapshot, customer_reference_snapshot, validity_days,
          company_name_snapshot, company_logo_snapshot, company_address_snapshot, company_phone_snapshot,
          company_email_snapshot, company_website_snapshot, company_gstin_snapshot,
          cover_letter_enabled, cover_letter_greeting, cover_letter_attention, cover_letter_subject,
