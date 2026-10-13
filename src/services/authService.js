@@ -30,28 +30,3 @@ export async function logout() {
 export async function getCurrentUser() {
   return apiClient.get(API_ENDPOINTS.auth.me)
 }
-
-export async function forgotPassword(payload) {
-  return apiClient.post(
-    API_ENDPOINTS.auth.forgotPassword,
-    {
-      email: payload.email,
-      website: payload.website || '',
-      fax: payload.fax || '',
-    },
-    { full: true },
-  )
-}
-
-export async function validateResetToken(token) {
-  return apiClient.get(API_ENDPOINTS.auth.validateResetToken(token))
-}
-
-export async function resetPassword(payload) {
-  return apiClient.post(API_ENDPOINTS.auth.resetPassword, {
-    token: payload.token,
-    password: payload.password,
-    website: payload.website || '',
-    fax: payload.fax || '',
-  })
-}
