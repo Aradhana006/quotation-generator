@@ -31,28 +31,17 @@ function emailConfigured() {
   return Boolean(resendApiKey() || smtpConfigured())
 }
 
-const PUBLIC_MAIL_DOMAINS = new Set([
-  'gmail.com',
-  'googlemail.com',
-  'yahoo.com',
-  'outlook.com',
-  'hotmail.com',
-  'live.com',
-  'icloud.com',
-])
-
 function getFromAddress({ forResend = false } = {}) {
-  let from = env('EMAIL_FROM') || env('SMTP_USER') || 'beth.t@example.com'
   const name = env('EMAIL_FROM_NAME') || 'QuoteBuilder'
 
-  // Resend rejects unverified public domains (e.g. @gmail.com).
+  // Resend only accepts verified domains. For demos always use their test sender
+  // unless RESEND_FROM is explicitly set to a domain you verified in Resend.
   if (forResend) {
-    const domain = from.split('@')[1]?.toLowerCase() || ''
-    if (!domain || PUBLIC_MAIL_DOMAINS.has(domain) || domain === 'gmail.com') {
-      from = 'beth.t@example.com'
-    }
+    const from = env('RESEND_FROM') || 'beth.t@example.com'
+    return { email: from, name, formatted: `"${name}" <${from}>` }
   }
 
+  const from = env('EMAIL_FROM') || env('SMTP_USER') || 'beth.t@example.com'
   return { email: from, name, formatted: `"${name}" <${from}>` }
 }
 
