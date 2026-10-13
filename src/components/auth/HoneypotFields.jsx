@@ -6,11 +6,11 @@ export const honeypotFieldClassName =
 
 function HoneypotFields({ website, fax, onWebsiteChange, onFaxChange }) {
   return (
-    <div aria-hidden="true">
-      <label htmlFor="website">Website</label>
+    <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px' }}>
+      <label htmlFor="company_website_url">Website</label>
       <input
-        id="website"
-        name="website"
+        id="company_website_url"
+        name="company_website_url"
         type="text"
         tabIndex={-1}
         autoComplete="off"
@@ -18,10 +18,10 @@ function HoneypotFields({ website, fax, onWebsiteChange, onFaxChange }) {
         onChange={(event) => onWebsiteChange(event.target.value)}
         className={honeypotFieldClassName}
       />
-      <label htmlFor="fax">Fax</label>
+      <label htmlFor="company_fax_number">Fax</label>
       <input
-        id="fax"
-        name="fax"
+        id="company_fax_number"
+        name="company_fax_number"
         type="text"
         tabIndex={-1}
         autoComplete="off"

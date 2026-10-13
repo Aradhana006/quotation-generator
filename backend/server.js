@@ -23,7 +23,29 @@ const app = express()
 const PORT = Number(process.env.PORT) || 3001
 const PgSession = connectPgSimple(session)
 const isProd = process.env.NODE_ENV === 'production'
-const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '')
+// Origin only — no path (/login), KEY= prefix, or trailing slash.
+function toOrigin(value) {
+  let raw = String(value || '').trim().replace(/^CLIENT_URL=/i, '').trim()
+  if (!raw) return null
+  try {
+    return new URL(raw).origin
+  } catch {
+    return raw.replace(/\/$/, '')
+  }
+}
+
+const clientUrl = toOrigin(process.env.CLIENT_URL) || 'http://localhost:5173'
+const extraOrigins = String(process.env.CLIENT_URLS || '')
+  .split(',')
+  .map((part) => toOrigin(part))
+  .filter(Boolean)
+const allowedOrigins = new Set([clientUrl, ...extraOrigins])
+
+app.use((req, res, next) => {
+  // Help browsers/debug when Render is waking from sleep.
+  res.setHeader('X-QuoteBuilder-API', '1')
+  next()
+})
 
 if (!process.env.SESSION_SECRET) {
   console.warn(
@@ -38,7 +60,14 @@ if (isProd) {
 
 app.use(
   cors({
-    origin: clientUrl,
+    origin(origin, callback) {
+      // Non-browser clients (no Origin) and exact allow-list.
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true)
+        return
+      }
+      callback(null, false)
+    },
     credentials: true,
     exposedHeaders: ['Content-Disposition'],
   }),
@@ -64,6 +93,10 @@ app.use(
     },
   }),
 )
+
+app.get('/', (req, res) => {
+  return successResponse(res, { health: '/api/health' }, 'QuoteBuilder API is running')
+})
 
 app.get('/api/health', (req, res) => {
   return successResponse(res, null, 'API is running')

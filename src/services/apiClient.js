@@ -47,15 +47,22 @@ async function request(method, path, body = null, { full = false } = {}) {
     options.body = JSON.stringify(body)
   }
 
+  const url = `${API_BASE_URL}${path}`
   let response
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, options)
+    response = await fetch(url, options)
   } catch {
-    throw new ApiError(
-      'Unable to reach the API server. Is the backend running?',
-      'NETWORK_ERROR',
-      0,
-    )
+    // One retry helps when Render free tier is waking from sleep.
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      response = await fetch(url, options)
+    } catch {
+      throw new ApiError(
+        'Unable to reach the API server. Wait 30s if the backend is waking up, then try again.',
+        'NETWORK_ERROR',
+        0,
+      )
+    }
   }
 
   let json

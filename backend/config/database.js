@@ -11,10 +11,18 @@ dotenv.config()
  *
  * The pool reuses connections instead of opening a new one per query.
  */
+function normalizeDatabaseUrl(value) {
+  let raw = String(value || '').trim()
+  // Common paste mistake: putting KEY=value into the value field on Render.
+  raw = raw.replace(/^DATABASE_URL=/i, '').trim()
+  return raw
+}
+
 function createPoolConfig() {
-  if (process.env.DATABASE_URL) {
+  const connectionString = normalizeDatabaseUrl(process.env.DATABASE_URL)
+  if (connectionString) {
     return {
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
       ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
       max: Number(process.env.DB_POOL_MAX) || 10,
       idleTimeoutMillis: 30_000,
@@ -48,7 +56,9 @@ export async function testDatabaseConnection() {
 export async function logDatabaseConnectionStatus() {
   try {
     await testDatabaseConnection()
-    const target = process.env.DATABASE_URL ? 'Supabase PostgreSQL' : 'PostgreSQL'
+    const target = normalizeDatabaseUrl(process.env.DATABASE_URL)
+      ? 'Supabase PostgreSQL'
+      : 'PostgreSQL'
     console.log(`Database connection successful (${target}).`)
   } catch (error) {
     console.error('Database connection failed:', error.message)

@@ -11,6 +11,17 @@ export async function getDatabaseHealth(req, res) {
     return successResponse(res, null, 'Database connection successful.')
   } catch (error) {
     console.error('Database health check failed:', error.message)
-    return errorResponse(res, 'DB_UNAVAILABLE', 'Database connection failed.', 503)
+    // Surface a short reason so Render/Vercel misconfig is easier to fix.
+    const hint = String(error.message || '')
+      .replace(/password=[^@\s]+/gi, 'password=***')
+      .slice(0, 180)
+    return errorResponse(
+      res,
+      'DB_UNAVAILABLE',
+      hint
+        ? `Database connection failed: ${hint}`
+        : 'Database connection failed.',
+      503,
+    )
   }
 }
