@@ -34,10 +34,10 @@ function emailConfigured() {
 function getFromAddress({ forResend = false } = {}) {
   const name = env('EMAIL_FROM_NAME') || 'QuoteBuilder'
 
-  // Resend only accepts verified domains. For demos always use their test sender
-  // unless RESEND_FROM is explicitly set to a domain you verified in Resend.
+  // Resend: never trust EMAIL_FROM / RESEND_FROM from Render for demos.
+  // Public domains (gmail/example.com) are rejected unless verified in Resend.
   if (forResend) {
-    const from = env('RESEND_FROM') || 'beth.t@example.com'
+    const from = 'beth.t@example.com'
     return { email: from, name, formatted: `"${name}" <${from}>` }
   }
 
