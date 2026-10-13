@@ -261,7 +261,7 @@ export async function forgotPassword(req, res) {
     return errorResponse(
       res,
       'EMAIL_UNAVAILABLE',
-      'Password reset email is not configured. Add SMTP settings on the server, then try again.',
+      'Password reset email is not configured. Add RESEND_API_KEY on the server (recommended on Render), then try again.',
       503,
     )
   }
