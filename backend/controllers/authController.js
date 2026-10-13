@@ -4,23 +4,36 @@ import pool from '../config/database.js'
 import * as companyModel from '../models/companyModel.js'
 import * as passwordResetModel from '../models/passwordResetModel.js'
 import * as userModel from '../models/userModel.js'
-import { isSmtpConfigured, sendPasswordResetEmail } from '../services/emailService.js'
+import {
+  isSmtpConfigured,
+  sendPasswordResetEmail,
+  verifySmtp,
+} from '../services/emailService.js'
 import { isValidEmail } from '../utils/emailValidation.js'
 import { isHoneypotTriggered } from '../utils/honeypot.js'
 import { errorResponse, successResponse } from '../utils/response.js'
 
 const SALT_ROUNDS = 10
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000
-const GENERIC_FORGOT_MESSAGE =
-  'If an account exists for that email, password reset instructions have been sent.'
+const FORGOT_SENT_MESSAGE =
+  'Password reset link sent. Check your inbox and spam folder.'
 
 function hashResetToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex')
 }
 
+function clientOrigin() {
+  let raw = String(process.env.CLIENT_URL || 'http://localhost:5173').trim()
+  raw = raw.replace(/^CLIENT_URL=/i, '').trim()
+  try {
+    return new URL(raw).origin
+  } catch {
+    return raw.replace(/\/$/, '') || 'http://localhost:5173'
+  }
+}
+
 function buildResetUrl(token) {
-  const origin = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '')
-  return `${origin}/reset-password?token=${encodeURIComponent(token)}`
+  return `${clientOrigin()}/reset-password?token=${encodeURIComponent(token)}`
 }
 
 
@@ -232,7 +245,7 @@ export async function getCurrentUser(req, res) {
 
 export async function forgotPassword(req, res) {
   if (isHoneypotTriggered(req.body)) {
-    return successResponse(res, { emailed: true }, GENERIC_FORGOT_MESSAGE)
+    return errorResponse(res, 'INVALID_PASSWORD', 'Unable to process password reset.', 400)
   }
 
   const email = String(req.body?.email || '').trim().toLowerCase()
@@ -284,20 +297,39 @@ export async function forgotPassword(req, res) {
 
     if (!emailResult.sent) {
       await passwordResetModel.markTokenUsed(tokenRow.id)
-      console.error(`[password-reset] Failed to email reset link (${emailResult.reason})`)
+      console.error(
+        `[password-reset] Failed to email reset link (${emailResult.reason})`,
+        emailResult.detail || '',
+      )
+      const detail = emailResult.detail ? ` (${emailResult.detail})` : ''
       return errorResponse(
         res,
         'EMAIL_UNAVAILABLE',
-        'Unable to send the reset email right now. Please try again later.',
+        `Unable to send the reset email right now.${detail}`,
         503,
       )
     }
 
-    return successResponse(res, { emailed: true }, GENERIC_FORGOT_MESSAGE)
+    return successResponse(res, { emailed: true }, FORGOT_SENT_MESSAGE)
   } catch (error) {
     console.error('forgotPassword error:', error.message)
     return errorResponse(res, 'INTERNAL_ERROR', 'Unable to process password reset.', 500)
   }
+}
+
+export async function getEmailHealth(req, res) {
+  const result = await verifySmtp()
+  if (!result.ok) {
+    return errorResponse(
+      res,
+      'EMAIL_UNAVAILABLE',
+      result.detail
+        ? `Email SMTP check failed: ${result.detail}`
+        : `Email SMTP check failed: ${result.reason}`,
+      503,
+    )
+  }
+  return successResponse(res, null, 'Email SMTP is configured and reachable.')
 }
 
 export async function validateResetToken(req, res) {

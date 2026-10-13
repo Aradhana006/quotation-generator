@@ -1,28 +1,50 @@
 import nodemailer from 'nodemailer'
 
+function env(name) {
+  let value = String(process.env[name] || '').trim()
+  // Common Render paste mistake: KEY=value put into the value field.
+  value = value.replace(new RegExp(`^${name}=`, 'i'), '').trim()
+  // Strip wrapping quotes from dashboard paste.
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim()
+  }
+  return value
+}
+
+function smtpPassword() {
+  // Gmail app passwords are 16 chars; spaces are optional in dashboards.
+  return env('SMTP_PASS').replace(/\s+/g, '')
+}
+
 function smtpConfigured() {
-  return Boolean(
-    process.env.SMTP_HOST &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASS,
-  )
+  return Boolean(env('SMTP_HOST') && env('SMTP_USER') && smtpPassword())
 }
 
 function getFromAddress() {
-  const from = process.env.EMAIL_FROM || process.env.SMTP_USER
-  const name = process.env.EMAIL_FROM_NAME || 'QuoteBuilder'
+  const from = env('EMAIL_FROM') || env('SMTP_USER')
+  const name = env('EMAIL_FROM_NAME') || 'QuoteBuilder'
   return from ? `"${name}" <${from}>` : null
 }
 
 function createTransport() {
+  const port = Number(env('SMTP_PORT') || 587)
+  const secure = String(env('SMTP_SECURE') || '').toLowerCase() === 'true' || port === 465
+
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
+    host: env('SMTP_HOST'),
+    port,
+    secure,
+    requireTLS: !secure,
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: env('SMTP_USER'),
+      pass: smtpPassword(),
     },
+    connectionTimeout: 20_000,
+    greetingTimeout: 20_000,
+    socketTimeout: 20_000,
   })
 }
 
@@ -46,12 +68,35 @@ export async function sendEmail({ to, subject, text, html }) {
     return { sent: true }
   } catch (error) {
     console.error('email send failed:', error.message)
-    return { sent: false, reason: 'SEND_FAILED' }
+    return {
+      sent: false,
+      reason: 'SEND_FAILED',
+      detail: String(error.message || 'unknown').slice(0, 220),
+    }
   }
 }
 
 export function isSmtpConfigured() {
   return smtpConfigured()
+}
+
+/** Used by /api/health/email so Render SMTP misconfig is visible. */
+export async function verifySmtp() {
+  if (!smtpConfigured()) {
+    return { ok: false, reason: 'SMTP_NOT_CONFIGURED' }
+  }
+  try {
+    const transport = createTransport()
+    await transport.verify()
+    return { ok: true }
+  } catch (error) {
+    console.error('SMTP verify failed:', error.message)
+    return {
+      ok: false,
+      reason: 'SMTP_VERIFY_FAILED',
+      detail: String(error.message || 'unknown').slice(0, 220),
+    }
+  }
 }
 
 export async function sendPasswordResetEmail({ to, name, resetUrl }) {

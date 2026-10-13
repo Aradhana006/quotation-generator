@@ -12,7 +12,7 @@ function ForgotPassword() {
   const [website, setWebsite] = useState('')
   const [fax, setFax] = useState('')
   const [error, setError] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -29,8 +29,11 @@ function ForgotPassword() {
     setIsSubmitting(true)
 
     try {
-      await forgotPassword({ email, website, fax })
-      setSubmitted(true)
+      const data = await forgotPassword({ email, website, fax })
+      setSuccessMessage(
+        data?.message ||
+          'Password reset link sent. Check your inbox and spam folder.',
+      )
     } catch (submitError) {
       setError(submitError.message || 'Unable to start password reset.')
     } finally {
@@ -47,11 +50,10 @@ function ForgotPassword() {
           Enter your account email and we&apos;ll send a reset link to that inbox.
         </p>
 
-        {submitted ? (
+        {successMessage ? (
           <div className="mt-6 space-y-4">
             <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
-              If an account exists for that email, password reset instructions have been sent.
-              Check your inbox (and spam folder).
+              {successMessage}
             </div>
 
             <p className="text-center text-sm text-slate-600">

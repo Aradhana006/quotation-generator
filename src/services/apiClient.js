@@ -153,7 +153,7 @@ function requestForm(method, path, formData, onProgress) {
 export const apiClient = {
   get: (path) => request('GET', path),
   getFull: (path) => request('GET', path, null, { full: true }),
-  post: (path, body) => request('POST', path, body),
+  post: (path, body, options) => request('POST', path, body, options),
   put: (path, body) => request('PUT', path, body),
   patch: (path, body) => request('PATCH', path, body),
   delete: (path) => request('DELETE', path),

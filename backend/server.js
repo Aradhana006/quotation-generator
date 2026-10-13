@@ -12,6 +12,7 @@ import quotationRoutes from './routes/quotationRoutes.js'
 import templateRoutes from './routes/templateRoutes.js'
 import termRoutes from './routes/termRoutes.js'
 import pool, { logDatabaseConnectionStatus } from './config/database.js'
+import { getEmailHealth } from './controllers/authController.js'
 import { getDatabaseHealth } from './controllers/healthController.js'
 import { logStorageDriver, serveTemplateFile } from './controllers/templateController.js'
 import { requireAuth } from './middleware/authMiddleware.js'
@@ -103,6 +104,7 @@ app.get('/api/health', (req, res) => {
 })
 
 app.get('/api/health/db', getDatabaseHealth)
+app.get('/api/health/email', getEmailHealth)
 
 app.use('/api/auth', authRoutes)
 app.get('/api/templates/file', serveTemplateFile)

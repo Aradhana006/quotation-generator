@@ -32,11 +32,15 @@ export async function getCurrentUser() {
 }
 
 export async function forgotPassword(payload) {
-  return apiClient.post(API_ENDPOINTS.auth.forgotPassword, {
-    email: payload.email,
-    website: payload.website || '',
-    fax: payload.fax || '',
-  })
+  return apiClient.post(
+    API_ENDPOINTS.auth.forgotPassword,
+    {
+      email: payload.email,
+      website: payload.website || '',
+      fax: payload.fax || '',
+    },
+    { full: true },
+  )
 }
 
 export async function validateResetToken(token) {
