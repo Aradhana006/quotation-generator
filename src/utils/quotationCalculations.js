@@ -11,11 +11,10 @@ export const STATUS_LABELS = {
 
 export const DEFAULT_TERMS_LIBRARY = [
   'Validity: 15 Days.',
-  'Payment: 100% advance along with purchase order.',
-  'Delivery: 4 to 5 weeks from confirmed purchase order.',
-  'Warranty: 12 months from date of delivery.',
-  'Installation: Extra.',
-  'Taxes: GST as applicable.',
+  'Payment: 100% advance along with the purchase order.',
+  'Delivery: 4 to 5 weeks from the confirmed purchase order.',
+  'Installation: Extra from the above quoted price.',
+  'GST: 18% Extra from the above quoted price.',
 ]
 
 export const TAX_RATE_OPTIONS = [0, 5, 12, 18, 28]
@@ -35,12 +34,15 @@ export const EMPTY_COMPANY = {
   gstin: '',
 }
 
+export const STANDARD_COVER_LETTER_MESSAGE =
+  'Thank you for the order of the products, as previously committed. Further to our discussion, please find the enclosed quotation for the agreed quantity. Kindly share the purchase order along with the advance payment as per your delivery schedule so we can initiate production. Please feel free to reach out if you require any further clarification or assistance.'
+
 export const EMPTY_COVER_LETTER = {
   enabled: true,
   greeting: 'Dear Sir,',
   kindAttention: '',
   subject: '',
-  message: 'Thank you for your enquiry. Please find our quotation for the requested requirements.',
+  message: STANDARD_COVER_LETTER_MESSAGE,
   closing: 'Thanking you,',
   signOffCompany: '',
   signOffTitle: 'Authorised Signatory',

@@ -35,146 +35,98 @@ function PageShell({ theme, children, className = '' }) {
   )
 }
 
-/** Top: uploaded logo only (keeps the page looking like a clean quotation letterhead). */
-function BrandHeader({ company, theme, align = 'right' }) {
-  const c = theme.colors
-  const alignClass =
-    align === 'center' ? 'justify-center' : align === 'left' ? 'justify-start' : 'justify-end'
-
-  return (
-    <div className={`mb-4 flex items-start ${alignClass}`}>
-      {company?.logo ? (
-        <img
-          src={company.logo}
-          alt={company.name || 'Company logo'}
-          className="h-14 w-auto max-w-[220px] object-contain object-right"
-        />
-      ) : (
-        <div className="text-right">
-          <p className="text-lg font-semibold" style={{ color: c.text }}>
-            {company?.name || 'Your Company'}
-          </p>
-          <p className="mt-0.5 text-xs" style={{ color: c.muted }}>
-            Quotation
-          </p>
-        </div>
-      )}
-    </div>
-  )
+function contactLine(company) {
+  return [
+    company?.address,
+    company?.phone,
+    company?.email,
+    company?.website,
+    company?.gstin ? `GSTIN: ${company.gstin}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
-/** Company name + contact — sits directly under content (no push-to-bottom gap). */
-function ContactFooter({ company, theme }) {
+/** Letterhead: name/logo left, rule, single contact line. */
+function BrandHeader({ company, theme }) {
   const c = theme.colors
   return (
-    <div className="mt-5 pt-4">
-      <div className="mb-3 h-px w-full" style={{ backgroundColor: c.line }} />
-      <p className="mb-2 text-sm font-semibold" style={{ color: c.text }}>
-        {company?.name || 'Your Company'}
-      </p>
-      <div
-        className="grid gap-3 text-[10px] leading-relaxed sm:grid-cols-3"
-        style={{ color: c.footerText }}
-      >
-        <div>
-          <p className="mb-1 font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
-            Address
-          </p>
-          <p className="whitespace-pre-line">{company?.address || '—'}</p>
-        </div>
-        <div>
-          <p className="mb-1 font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
-            Email
-          </p>
-          <p>{company?.email || '—'}</p>
-          {company?.website && <p className="mt-1">{company.website}</p>}
-        </div>
-        <div>
-          <p className="mb-1 font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
-            Contact
-          </p>
-          <p>{company?.phone || '—'}</p>
-          {company?.gstin && <p className="mt-1">GSTIN: {company.gstin}</p>}
-        </div>
+    <div className="mb-2">
+      <div className="flex items-center gap-3">
+        {company?.logo ? (
+          <img
+            src={company.logo}
+            alt={company.name || 'Company logo'}
+            className="h-10 w-auto max-w-[140px] object-contain"
+          />
+        ) : null}
+        <p className="text-[15px] font-bold leading-tight" style={{ color: c.text }}>
+          {company?.name || 'Your Company'}
+        </p>
       </div>
+      <div className="mt-2 h-px w-full" style={{ backgroundColor: c.line }} />
+      <p className="mt-2 text-[11px] leading-5" style={{ color: c.muted }}>
+        {contactLine(company) || '—'}
+      </p>
     </div>
   )
 }
 
-function LabelValue({ label, value, theme }) {
+function LabelValue({ label, value, theme, boldValue = false }) {
   if (!value && value !== 0) return null
   return (
-    <div className="grid grid-cols-[120px_12px_1fr] gap-1 text-sm leading-6">
+    <div className="grid grid-cols-[110px_14px_1fr] gap-0 text-[13px] leading-6">
       <span style={{ color: theme.colors.text }}>{label}</span>
-      <span style={{ color: theme.colors.muted }}>:</span>
-      <span style={{ color: theme.colors.text }}>{value}</span>
+      <span style={{ color: theme.colors.text }}>:</span>
+      <span
+        className={boldValue ? 'font-bold' : 'font-normal'}
+        style={{ color: theme.colors.text }}
+      >
+        {value}
+      </span>
     </div>
   )
 }
 
 function SignatureArea({ signature, company, theme }) {
   return (
-    <div className="mt-5">
-      <p className="text-sm italic" style={{ color: theme.colors.text }}>
-        For <span className="font-semibold not-italic">{company.name || 'Your Company'}</span>
-      </p>
-      <div className="mt-3 flex items-end gap-6">
-        <div>
-          {signature?.signatureImage ? (
-            <img
-              src={signature.signatureImage}
-              alt="Signature"
-              className="mb-1 h-12 w-auto object-contain"
-            />
-          ) : (
-            <div className="mb-1 h-10 w-36 border-b" style={{ borderColor: theme.colors.line }} />
-          )}
-          <p className="text-sm italic" style={{ color: theme.colors.muted }}>
-            {signature?.designation || 'Authorised Signatory'}
-          </p>
-          {signature?.name && (
-            <p className="text-sm font-medium" style={{ color: theme.colors.text }}>
-              {signature.name}
-            </p>
-          )}
-        </div>
+    <div className="mt-6 text-[13px]" style={{ color: theme.colors.text }}>
+      <p>For {company.name || 'Your Company'}</p>
+      <div className="mt-3">
+        {signature?.signatureImage ? (
+          <img
+            src={signature.signatureImage}
+            alt="Signature"
+            className="mb-1 h-12 w-auto object-contain"
+          />
+        ) : (
+          <div className="mb-1 h-10 w-36 border-b" style={{ borderColor: theme.colors.line }} />
+        )}
+        <p>{signature?.designation || 'Authorised Signatory'}</p>
+        {signature?.name && <p>{signature.name}</p>}
       </div>
     </div>
   )
 }
 
-/** Cover page letter body. */
+/** Cover page letter body — one consistent body size, light spacing. */
 export function CoverLetterPreview({ coverLetter, company, asCoverPage = false, theme }) {
   if (!coverLetter) return null
   const t = theme || getTemplateTheme('modern')
 
   const body = (
-    <div className="max-w-2xl space-y-3 text-[13px] leading-6" style={{ color: t.colors.text }}>
+    <div className="max-w-3xl space-y-3 text-[13px] leading-6" style={{ color: t.colors.text }}>
       {coverLetter.greeting && <p>{coverLetter.greeting}</p>}
-      {coverLetter.kindAttention && (
-        <p className="font-semibold">
-          Kind Attn: {coverLetter.kindAttention}
-        </p>
-      )}
-      {coverLetter.subject && (
-        <p>
-          <span className="font-semibold">Subject:</span> {coverLetter.subject}
-        </p>
-      )}
+      {coverLetter.kindAttention && <p>Kind Attn: {coverLetter.kindAttention}</p>}
+      {coverLetter.subject && <p>Subject: {coverLetter.subject}</p>}
       {coverLetter.message && (
         <p className="whitespace-pre-line text-justify">{coverLetter.message}</p>
       )}
-      {coverLetter.closing && <p className="pt-1">{coverLetter.closing}</p>}
+      {coverLetter.closing && <p>{coverLetter.closing}</p>}
       {(coverLetter.signOffCompany || coverLetter.signOffTitle) && (
-        <div className="pt-2">
-          {coverLetter.signOffCompany && (
-            <p className="font-semibold">{coverLetter.signOffCompany}</p>
-          )}
-          {coverLetter.signOffTitle && (
-            <p className="text-xs" style={{ color: t.colors.muted }}>
-              {coverLetter.signOffTitle}
-            </p>
-          )}
+        <div className="space-y-1 pt-1">
+          {coverLetter.signOffCompany && <p>{coverLetter.signOffCompany}</p>}
+          {coverLetter.signOffTitle && <p>{coverLetter.signOffTitle}</p>}
         </div>
       )}
     </div>
@@ -187,28 +139,21 @@ export function CoverLetterPreview({ coverLetter, company, asCoverPage = false, 
 export function CustomerSection({ customer, title = 'To', theme }) {
   const t = theme || getTemplateTheme('modern')
   return (
-    <div className="mb-3 text-sm leading-6" style={{ color: t.colors.text }}>
-      <p className="mb-1 font-medium">{title}</p>
-      <p className="font-semibold">{customer.companyName || '—'}</p>
+    <div className="mb-4 text-[13px] leading-6" style={{ color: t.colors.text }}>
+      <p className="mb-1">{title}</p>
+      <p>{customer.companyName || '—'}</p>
       {customer.address && <p className="mt-1 whitespace-pre-line">{customer.address}</p>}
       {customer.contactPerson && <p className="mt-2">Kind Attn: {customer.contactPerson}</p>}
-      {(customer.email || customer.phone) && (
-        <p className="mt-1" style={{ color: t.colors.muted }}>
-          {[customer.email, customer.phone].filter(Boolean).join(' · ')}
-        </p>
-      )}
-      {(customer.referenceNumber || customer.gstin) && (
-        <p className="mt-1" style={{ color: t.colors.muted }}>
-          {[
-            customer.referenceNumber ? `Ref: ${customer.referenceNumber}` : '',
-            customer.gstin ? `GSTIN: ${customer.gstin}` : '',
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
-      )}
     </div>
   )
+}
+
+function formatPlainAmount(amount, currency) {
+  const value = Number(amount) || 0
+  if (currency === 'INR') {
+    return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value)
+  }
+  return formatCurrency(value, currency)
 }
 
 export function ItemsTable({ items, currency = 'INR', theme, subject }) {
@@ -216,18 +161,15 @@ export function ItemsTable({ items, currency = 'INR', theme, subject }) {
   const c = t.colors
 
   if (!items.length) {
-    return <p className="mb-3 text-sm opacity-70">No items added yet.</p>
+    return <p className="mb-3 text-[13px] opacity-70">No items added yet.</p>
   }
 
   return (
-    <div className="mb-3">
+    <div className="mb-4">
       {subject && (
-        <h3
-          className="mb-2 text-base font-bold"
-          style={{ color: c.text, fontFamily: t.headingFont }}
-        >
+        <p className="mb-2 text-[13px] font-bold" style={{ color: c.text }}>
           {subject}
-        </h3>
+        </p>
       )}
       <table
         className="w-full border-collapse text-[12px]"
@@ -235,20 +177,20 @@ export function ItemsTable({ items, currency = 'INR', theme, subject }) {
       >
         <thead>
           <tr style={{ backgroundColor: c.tableHeaderBg, color: c.tableHeaderText }}>
-            <th className="border px-2 py-2 text-center font-semibold" style={{ borderColor: c.tableBorder }}>
+            <th className="border px-2 py-2 text-center font-bold" style={{ borderColor: c.tableBorder }}>
               Sno.
             </th>
-            <th className="border px-2 py-2 text-left font-semibold" style={{ borderColor: c.tableBorder }}>
+            <th className="border px-2 py-2 text-center font-bold" style={{ borderColor: c.tableBorder }}>
               Description
             </th>
-            <th className="border px-2 py-2 text-center font-semibold" style={{ borderColor: c.tableBorder }}>
-              Price
+            <th className="border px-2 py-2 text-center font-bold" style={{ borderColor: c.tableBorder }}>
+              Price (₹)
             </th>
-            <th className="border px-2 py-2 text-center font-semibold" style={{ borderColor: c.tableBorder }}>
-              Qty
+            <th className="border px-2 py-2 text-center font-bold" style={{ borderColor: c.tableBorder }}>
+              Qty (No)
             </th>
-            <th className="border px-2 py-2 text-center font-semibold" style={{ borderColor: c.tableBorder }}>
-              Total Price
+            <th className="border px-2 py-2 text-center font-bold" style={{ borderColor: c.tableBorder }}>
+              Total Price (₹)
             </th>
           </tr>
         </thead>
@@ -259,7 +201,7 @@ export function ItemsTable({ items, currency = 'INR', theme, subject }) {
             const qty = Number(item.quantity) || 0
             const specLines = String(item.specification || '')
               .split('\n')
-              .map((line) => line.trim())
+              .map((line) => line.trim().replace(/^[-•*]\s*/, ''))
               .filter(Boolean)
 
             return (
@@ -270,26 +212,21 @@ export function ItemsTable({ items, currency = 'INR', theme, subject }) {
                 >
                   {index + 1}.
                 </td>
-                <td className="border px-2 py-2" style={{ borderColor: c.tableBorder }}>
-                  <p className="font-medium">{item.description || '—'}</p>
+                <td className="border px-2 py-2 text-left" style={{ borderColor: c.tableBorder }}>
+                  <p>{item.description || '—'}</p>
                   {specLines.length > 0 && (
-                    <ul className="mt-1 list-disc space-y-0.5 pl-4" style={{ color: c.muted }}>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4">
                       {specLines.map((line) => (
-                        <li key={line}>{line.replace(/^[-•*]\s*/, '')}</li>
+                        <li key={line}>{line}</li>
                       ))}
                     </ul>
-                  )}
-                  {item.unit && (
-                    <p className="mt-1 text-[11px]" style={{ color: c.muted }}>
-                      Unit: {item.unit}
-                    </p>
                   )}
                 </td>
                 <td
                   className="border px-2 py-2 text-center tabular-nums"
                   style={{ borderColor: c.tableBorder }}
                 >
-                  {formatCurrency(unitPrice, currency)}
+                  {formatPlainAmount(unitPrice, currency)}
                 </td>
                 <td
                   className="border px-2 py-2 text-center tabular-nums"
@@ -298,10 +235,10 @@ export function ItemsTable({ items, currency = 'INR', theme, subject }) {
                   {qty}
                 </td>
                 <td
-                  className="border px-2 py-2 text-center font-semibold tabular-nums"
+                  className="border px-2 py-2 text-center font-bold tabular-nums"
                   style={{ borderColor: c.tableBorder }}
                 >
-                  {formatCurrency(lineTotal || getItemBaseAmount(item), currency)}
+                  {formatPlainAmount(lineTotal || getItemBaseAmount(item), currency)}
                 </td>
               </tr>
             )
@@ -317,16 +254,16 @@ export function PricingBlock({ items, additionalCharges = [], currency = 'INR', 
   const summary = getQuotationSummary(items, additionalCharges)
 
   return (
-    <div className="mb-3 ml-auto w-full max-w-xs text-sm">
+    <div className="mb-4 ml-auto w-full max-w-xs text-[13px]" style={{ color: t.colors.text }}>
       <div
-        className="flex justify-between rounded-sm px-3 py-2 font-semibold"
-        style={{ backgroundColor: t.colors.accent, color: '#fff' }}
+        className="flex justify-between border px-3 py-2 font-bold"
+        style={{ borderColor: t.colors.tableBorder }}
       >
         <span>Grand Total</span>
         <span>{formatCurrency(summary.grandTotal, currency)}</span>
       </div>
       {(summary.taxAmount > 0 || summary.totalDiscount > 0) && (
-        <div className="mt-2 space-y-1 px-1 text-xs" style={{ color: t.colors.muted }}>
+        <div className="mt-2 space-y-1 px-1 text-[12px]">
           {summary.totalDiscount > 0 && (
             <div className="flex justify-between">
               <span>Discount</span>
@@ -345,33 +282,57 @@ export function PricingBlock({ items, additionalCharges = [], currency = 'INR', 
   )
 }
 
-export function TermsAndBankBlock({ quotationData, theme }) {
-  const t = theme || getTemplateTheme('modern')
+function buildPreviewTermRows(quotationData) {
   const {
-    quotationDetails,
+    quotationDetails = {},
     paymentTerms,
     deliveryTerms,
     terms = [],
-    bankDetails = {},
     company,
   } = quotationData
+  const rows = []
+  const seen = new Set()
 
-  const termRows = [
-    {
-      label: 'Validity',
-      value:
-        quotationDetails.validityDays !== '' && quotationDetails.validityDays != null
-          ? `${quotationDetails.validityDays} Days`
-          : quotationDetails.validUntil
-            ? `Until ${formatDate(quotationDetails.validUntil)}`
-            : '',
-    },
-    { label: 'Payment', value: paymentTerms },
-    { label: 'Delivery', value: deliveryTerms },
-    { label: 'GSTIN', value: company?.gstin },
-  ]
+  const push = (label, value, boldValue = false) => {
+    const key = String(label || '').toLowerCase()
+    if (!value || seen.has(key)) return
+    seen.add(key)
+    rows.push({ label, value, boldValue })
+  }
 
-  const customTerms = terms.filter((term) => String(term || '').trim())
+  push(
+    'Validity',
+    quotationDetails.validityDays !== '' && quotationDetails.validityDays != null
+      ? `${quotationDetails.validityDays} Days.`
+      : quotationDetails.validUntil
+        ? `Until ${formatDate(quotationDetails.validUntil)}.`
+        : '',
+  )
+  push('Payment', paymentTerms)
+  push('Delivery', deliveryTerms)
+
+  terms.forEach((term) => {
+    const text = String(term || '').trim().replace(/^[-•*]\s*/, '')
+    if (!text) return
+    const match = text.match(/^([^:]+):\s*(.+)$/)
+    if (match) {
+      const label = match[1].trim()
+      const value = match[2].trim()
+      push(label, value, /^(gst|gstin)$/i.test(label))
+    } else {
+      push('Note', text)
+    }
+  })
+
+  push('GSTIN', company?.gstin, true)
+  return rows
+}
+
+export function TermsAndBankBlock({ quotationData, theme }) {
+  const t = theme || getTemplateTheme('modern')
+  const { bankDetails = {} } = quotationData
+  const termRows = buildPreviewTermRows(quotationData)
+
   const hasBank =
     bankDetails.accountName ||
     bankDetails.accountNumber ||
@@ -380,22 +341,23 @@ export function TermsAndBankBlock({ quotationData, theme }) {
     bankDetails.ifsc
 
   return (
-    <div className="mb-3 grid gap-4 sm:grid-cols-2">
+    <div className="mb-4 grid gap-6 sm:grid-cols-2">
       <div>
         <h4
-          className="mb-2 text-sm font-bold uppercase underline underline-offset-4"
-          style={{ color: t.colors.text, fontFamily: t.headingFont }}
+          className="mb-2 text-[13px] font-bold uppercase underline underline-offset-4"
+          style={{ color: t.colors.text }}
         >
           Terms & Conditions
         </h4>
         <div className="space-y-0.5">
           {termRows.map((row) => (
-            <LabelValue key={row.label} label={row.label} value={row.value} theme={t} />
-          ))}
-          {customTerms.map((term, index) => (
-            <p key={index} className="text-sm leading-6" style={{ color: t.colors.text }}>
-              • {term}
-            </p>
+            <LabelValue
+              key={`${row.label}-${row.value}`}
+              label={row.label}
+              value={row.value}
+              theme={t}
+              boldValue={row.boldValue}
+            />
           ))}
         </div>
       </div>
@@ -403,8 +365,8 @@ export function TermsAndBankBlock({ quotationData, theme }) {
       {hasBank && (
         <div>
           <h4
-            className="mb-2 text-sm font-bold underline underline-offset-4"
-            style={{ color: t.colors.text, fontFamily: t.headingFont }}
+            className="mb-2 text-[13px] font-bold underline underline-offset-4"
+            style={{ color: t.colors.text }}
           >
             Bank Details
           </h4>
@@ -423,22 +385,24 @@ export function TermsAndBankBlock({ quotationData, theme }) {
 
 export function CompanyHeader({ company, variant = 'modern' }) {
   const theme = getTemplateTheme(variant)
-  return <BrandHeader company={company} theme={theme} align="left" />
+  return <BrandHeader company={company} theme={theme} />
 }
 
 export function MetaGrid({ quotationDetails, showSubject = true, theme }) {
   const t = theme || getTemplateTheme('modern')
   return (
-    <div className="mb-5">
-      <div className="mb-4 flex items-start justify-between gap-4 text-sm">
+    <div className="mb-4">
+      <div className="mb-3 mt-4 flex items-start justify-between gap-4 text-[13px]">
         <p style={{ color: t.colors.text }}>
-          <span className="font-medium">{quotationDetails.referenceNumber || quotationDetails.quotationNumber || '—'}</span>
+          Quotation No.: {quotationDetails.quotationNumber || '—'}
         </p>
-        <p style={{ color: t.colors.text }}>{formatDate(quotationDetails.quotationDate)}</p>
+        <p style={{ color: t.colors.text }}>
+          Date: {formatDate(quotationDetails.quotationDate)}
+        </p>
       </div>
       {showSubject && quotationDetails.subject && (
-        <p className="text-sm">
-          <span className="font-semibold">Subject:</span> {quotationDetails.subject}
+        <p className="text-[13px]" style={{ color: t.colors.text }}>
+          Subject: {quotationDetails.subject}
         </p>
       )}
     </div>
@@ -492,44 +456,35 @@ export function QuotationDocumentPages({
     <div className="space-y-6">
       {/* Page 1 — cover */}
       <PageShell theme={theme} className={`quote-preview-page--cover ${pageClassName}`}>
-        <BrandHeader company={company} theme={theme} align="right" />
+        <BrandHeader company={company} theme={theme} />
 
-        <div className="mb-4 flex items-start justify-between gap-4 text-sm">
+        <div className="mb-4 mt-5 flex items-start justify-between gap-4 text-[13px]">
           <p style={{ color: theme.colors.text }}>
-            {quotationDetails.referenceNumber || quotationDetails.quotationNumber || '—'}
+            Quotation No.: {quotationDetails.quotationNumber || '—'}
           </p>
           <p style={{ color: theme.colors.text }}>
-            {formatDate(quotationDetails.quotationDate)}
+            Date: {formatDate(quotationDetails.quotationDate)}
           </p>
         </div>
 
         <CustomerSection customer={customer} title="To" theme={theme} />
 
-        <div className="mt-1">
-          <p
-            className="mb-3 text-[10px] font-semibold uppercase tracking-wide"
-            style={{ color: theme.colors.muted }}
-          >
-            Cover letter
-          </p>
-          <CoverLetterPreview
-            coverLetter={coverContent}
-            company={company}
-            asCoverPage
-            theme={theme}
-          />
-          <SignatureArea signature={signature} company={company} theme={theme} />
-        </div>
-
-        <ContactFooter company={company} theme={theme} />
+        <CoverLetterPreview
+          coverLetter={coverContent}
+          company={company}
+          asCoverPage
+          theme={theme}
+        />
+        <SignatureArea signature={signature} company={company} theme={theme} />
       </PageShell>
 
       {/* Page 2 — quotation schedule */}
       <PageShell theme={theme} className={`quote-preview-page--content ${pageClassName}`}>
-        <BrandHeader company={company} theme={theme} align="right" />
+        <BrandHeader company={company} theme={theme} />
         {bodyHeading}
-        <QuotationBodyContent quotationData={quotationData} compact theme={theme} />
-        <ContactFooter company={company} theme={theme} />
+        <div className="mt-4">
+          <QuotationBodyContent quotationData={quotationData} compact theme={theme} />
+        </div>
       </PageShell>
     </div>
   )
@@ -554,7 +509,6 @@ export function QuotationContentSections({
   return (
     <PageShell theme={theme} className="quote-preview-page--content">
       <QuotationBodyContent quotationData={quotationData} compact={compact} theme={theme} />
-      <ContactFooter company={quotationData.company} theme={theme} />
     </PageShell>
   )
 }
