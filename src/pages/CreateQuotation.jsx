@@ -213,6 +213,11 @@ function CreateQuotation() {
         validityDays,
         validUntil: addDaysToDateString(today, validityDays),
       })
+      setCoverLetter({
+        ...EMPTY_COVER_LETTER,
+        message: resolveCoverLetterMessage(EMPTY_COVER_LETTER.message),
+        enabled: true,
+      })
       setIsInitialized(true)
     }
 
@@ -285,6 +290,7 @@ function CreateQuotation() {
     setCoverLetter((current) => ({
       ...current,
       enabled: true,
+      message: resolveCoverLetterMessage(current.message),
       kindAttention:
         current.kindAttention?.trim() ||
         customer.contactPerson ||

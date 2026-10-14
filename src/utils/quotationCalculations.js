@@ -35,12 +35,13 @@ export const EMPTY_COMPANY = {
 }
 
 export const STANDARD_COVER_LETTER_MESSAGE =
-  'Thank you for the order of the products, as previously committed. Further to our discussion, please find the enclosed quotation for the agreed quantity. Kindly share the purchase order along with the advance payment as per your delivery schedule so we can initiate production. Please feel free to reach out if you require any further clarification or assistance.'
+  'Thank you for the order of products, as previously committed. Further to our discussion, please find the enclosed quotation for the agreed quantity. Kindly share the purchase order along with the advance payment as per your delivery schedule so we can initiate production. Please feel free to reach out if you require any further clarification or assistance.'
 
 /** Older defaults that should be upgraded to the standard cover message. */
 export const LEGACY_COVER_LETTER_MESSAGES = [
   'Thank you for your enquiry. Please find our quotation for the requested requirements.',
   'With reference to your enquiry, we are pleased to submit our offer for industrial edge hardware to connect with your existing PLC.',
+  'Thank you for the order of the products, as previously committed. Further to our discussion, please find the enclosed quotation for the agreed quantity. Kindly share the purchase order along with the advance payment as per your delivery schedule so we can initiate production. Please feel free to reach out if you require any further clarification or assistance.',
 ]
 
 export function resolveCoverLetterMessage(message) {
