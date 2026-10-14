@@ -283,7 +283,15 @@ function CreateQuotation() {
   }
 
   function handleCoverLetterChange(field, value) {
-    setCoverLetter((current) => ({ ...current, enabled: true, [field]: value }))
+    setCoverLetter((current) => ({
+      ...current,
+      enabled: true,
+      [field]: field === 'message' ? resolveCoverLetterMessage(value) : value,
+      // Keep message filled even when other cover fields change.
+      ...(field === 'message'
+        ? {}
+        : { message: resolveCoverLetterMessage(current.message) }),
+    }))
   }
 
   function prepareCoverPageDefaults() {
