@@ -17,13 +17,14 @@ const fields = [
 ]
 
 function CoverLetter({ coverLetter, onChange, bare = false }) {
-  // Always ensure Cover message is the standard paragraph when empty/legacy.
+  // Fill Cover message once when this section mounts (empty/legacy → standard text).
   useEffect(() => {
     const resolved = resolveCoverLetterMessage(coverLetter?.message)
     if (resolved !== (coverLetter?.message || '')) {
       onChange('message', resolved)
     }
-  }, [coverLetter?.message, onChange])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on mount / when message changes
+  }, [coverLetter?.message])
 
   function handleChange(field) {
     return (event) => {
