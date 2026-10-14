@@ -4,19 +4,21 @@ const BODY_SIZE = 10
 const SMALL_SIZE = 8
 const LABEL_COL = 110
 
-function contactLine(company = {}) {
-  return [
-    company.address,
-    company.phone,
-    company.email,
-    company.website,
-    company.gstin ? `GSTIN: ${company.gstin}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ')
+const LEGACY_COVER_MESSAGES = [
+  'Thank you for your enquiry. Please find our quotation for the requested requirements.',
+  'With reference to your enquiry, we are pleased to submit our offer for industrial edge hardware to connect with your existing PLC.',
+]
+
+const STANDARD_COVER_MESSAGE =
+  'Thank you for the order of the products, as previously committed. Further to our discussion, please find the enclosed quotation for the agreed quantity. Kindly share the purchase order along with the advance payment as per your delivery schedule so we can initiate production. Please feel free to reach out if you require any further clarification or assistance.'
+
+function resolveCoverMessage(message) {
+  const text = String(message || '').trim()
+  if (!text || LEGACY_COVER_MESSAGES.includes(text)) return STANDARD_COVER_MESSAGE
+  return text
 }
 
-/** Letterhead: company name (or logo) left, rule, then one contact line. */
+/** Letterhead: company name (or logo) left + rule. Contact block is page-bottom footer. */
 export function drawCompanyHeader(pdf, quotation) {
   const company = quotation.company || {}
   const startY = pdf.y
@@ -47,19 +49,54 @@ export function drawCompanyHeader(pdf, quotation) {
     .moveTo(pdf.left, pdf.y)
     .lineTo(pdf.right, pdf.y)
     .stroke()
-  pdf.y += 8
-
-  const contacts = contactLine(company)
-  if (contacts) {
-    pdf.font('body').size(SMALL_SIZE).fill(pdf.theme.colors.muted)
-    pdf.wrappedText(contacts, { paddingBottom: 2, lineGap: 1 })
-  }
-  pdf.move(6)
+  pdf.y += 14
 }
 
-/** Kept for compatibility — page footer already carries branding. */
-export function drawCompanyFooter() {
-  // no-op: avoid duplicating letterhead/contact blocks mid-page
+/** 3-column company details pinned to the bottom of the content area. */
+export function drawCompanyFooter(pdf, quotation) {
+  const company = quotation.company || {}
+  const blockHeight = 72
+  if (pdf.y < pdf.contentBottom - blockHeight) {
+    pdf.y = pdf.contentBottom - blockHeight
+  }
+
+  pdf.doc
+    .strokeColor(pdf.theme.colors.line)
+    .lineWidth(0.7)
+    .moveTo(pdf.left, pdf.y)
+    .lineTo(pdf.right, pdf.y)
+    .stroke()
+  pdf.y += 8
+
+  pdf.font('heading').size(BODY_SIZE).fill(pdf.theme.colors.text)
+  pdf.wrappedText(company.name || 'Your Company', { paddingBottom: 4 })
+
+  const colWidth = pdf.width / 3
+  const labelY = pdf.y
+  const columns = [
+    { title: 'ADDRESS', lines: [company.address || '—'] },
+    {
+      title: 'EMAIL',
+      lines: [company.email || '—', company.website].filter(Boolean),
+    },
+    {
+      title: 'CONTACT',
+      lines: [company.phone || '—', company.gstin ? `GSTIN: ${company.gstin}` : ''].filter(Boolean),
+    },
+  ]
+
+  columns.forEach((column, index) => {
+    const x = pdf.left + colWidth * index
+    pdf.font('body').size(7).fill(pdf.theme.colors.muted)
+    pdf.doc.text(column.title, x, labelY, { width: colWidth - 8 })
+    pdf.font('body').size(SMALL_SIZE).fill(pdf.theme.colors.text)
+    column.lines.forEach((line, lineIndex) => {
+      pdf.doc.text(String(line), x, labelY + 11 + lineIndex * 11, {
+        width: colWidth - 8,
+      })
+    })
+  })
+  pdf.y = labelY + 40
 }
 
 export function drawMeta(pdf, quotation, variant) {
@@ -113,6 +150,7 @@ export function drawCustomer(pdf, quotation) {
 export function drawCoverLetter(pdf, quotation, { asCoverPage = false } = {}) {
   const cover = quotation.coverLetter || {}
   const gap = asCoverPage ? 10 : 6
+  const message = resolveCoverMessage(cover.message)
 
   pdf.font('body').size(BODY_SIZE).fill(pdf.theme.colors.text)
   if (cover.greeting) pdf.wrappedText(cover.greeting, { paddingBottom: gap })
@@ -122,8 +160,8 @@ export function drawCoverLetter(pdf, quotation, { asCoverPage = false } = {}) {
   if (cover.subject) {
     pdf.wrappedText(`Subject: ${cover.subject}`, { paddingBottom: gap })
   }
-  if (cover.message) {
-    pdf.wrappedText(cover.message, { paddingBottom: gap + 2, lineGap: 3 })
+  if (message) {
+    pdf.wrappedText(message, { paddingBottom: gap + 2, lineGap: 3 })
   }
   if (cover.closing) pdf.wrappedText(cover.closing, { paddingBottom: gap })
   if (cover.signOffCompany) pdf.wrappedText(cover.signOffCompany, { paddingBottom: 2 })
@@ -468,6 +506,7 @@ export function renderStandardQuotation(pdf, quotation, variant) {
   drawRecipient(pdf, quotation)
   drawCoverLetter(pdf, quotation, { asCoverPage: true })
   drawBankAndSignature(pdf, { ...quotation, bankDetails: {} })
+  drawCompanyFooter(pdf, quotation)
 
   // Page 2: quotation schedule
   pdf.addPage()
@@ -476,4 +515,5 @@ export function renderStandardQuotation(pdf, quotation, variant) {
   drawPricing(pdf, quotation)
   drawNotesAndTerms(pdf, quotation)
   drawBankAndSignature(pdf, quotation)
+  drawCompanyFooter(pdf, quotation)
 }

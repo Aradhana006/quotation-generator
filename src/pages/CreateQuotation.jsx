@@ -36,6 +36,7 @@ import {
   createEmptyCharge,
   createEmptyItem,
   EMPTY_COVER_LETTER,
+  resolveCoverLetterMessage,
   EMPTY_CUSTOMER,
   EMPTY_QUOTATION_DETAILS,
   getQuotationSummary,
@@ -158,6 +159,7 @@ function CreateQuotation() {
       setCoverLetter({
         ...EMPTY_COVER_LETTER,
         ...(existing.coverLetter || {}),
+        message: resolveCoverLetterMessage(existing.coverLetter?.message),
         enabled: true,
       })
       setItems(existing.items?.length ? existing.items : [createEmptyItem()])

@@ -27,7 +27,8 @@ function emptyCoverLetter() {
     greeting: 'Dear Sir,',
     kindAttention: '',
     subject: '',
-    message: 'Thank you for your enquiry. Please find our quotation for the requested requirements.',
+    message:
+      'Thank you for the order of the products, as previously committed. Further to our discussion, please find the enclosed quotation for the agreed quantity. Kindly share the purchase order along with the advance payment as per your delivery schedule so we can initiate production. Please feel free to reach out if you require any further clarification or assistance.',
     closing: 'Thanking you,',
     signOffCompany: '',
     signOffTitle: 'Authorised Signatory',

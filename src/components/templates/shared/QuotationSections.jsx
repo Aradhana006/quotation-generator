@@ -4,6 +4,7 @@ import {
   getItemBaseAmount,
   getItemFinalTotal,
   getQuotationSummary,
+  resolveCoverLetterMessage,
 } from '../../../utils/quotationCalculations'
 import { getTemplateTheme } from '../../../data/templateThemes'
 
@@ -27,27 +28,15 @@ function PageShell({ theme, children, className = '' }) {
         fontFamily: theme.fontFamily,
       }}
     >
-      {/* Pack content from the top — no flex spacer that creates empty mid-page gaps */}
-      <div className="relative z-10 flex min-h-[297mm] flex-col justify-start px-8 py-6 sm:px-10 sm:py-7">
+      {/* Full A4 column so the company contact block can sit at the page bottom */}
+      <div className="relative z-10 flex min-h-[297mm] flex-col px-8 py-6 sm:px-10 sm:py-7">
         {children}
       </div>
     </div>
   )
 }
 
-function contactLine(company) {
-  return [
-    company?.address,
-    company?.phone,
-    company?.email,
-    company?.website,
-    company?.gstin ? `GSTIN: ${company.gstin}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ')
-}
-
-/** Letterhead: name/logo left, rule, single contact line. */
+/** Letterhead: company name/logo + rule only (contact block is page footer). */
 function BrandHeader({ company, theme }) {
   const c = theme.colors
   return (
@@ -65,9 +54,44 @@ function BrandHeader({ company, theme }) {
         </p>
       </div>
       <div className="mt-2 h-px w-full" style={{ backgroundColor: c.line }} />
-      <p className="mt-2 text-[11px] leading-5" style={{ color: c.muted }}>
-        {contactLine(company) || '—'}
+    </div>
+  )
+}
+
+/** 3-column company details — pinned to the bottom of the page. */
+function ContactFooter({ company, theme }) {
+  const c = theme.colors
+  return (
+    <div className="mt-auto pt-8">
+      <div className="mb-3 h-px w-full" style={{ backgroundColor: c.line }} />
+      <p className="mb-2 text-sm font-semibold" style={{ color: c.text }}>
+        {company?.name || 'Your Company'}
       </p>
+      <div
+        className="grid gap-3 text-[10px] leading-relaxed sm:grid-cols-3"
+        style={{ color: c.footerText }}
+      >
+        <div>
+          <p className="mb-1 font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
+            Address
+          </p>
+          <p className="whitespace-pre-line">{company?.address || '—'}</p>
+        </div>
+        <div>
+          <p className="mb-1 font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
+            Email
+          </p>
+          <p>{company?.email || '—'}</p>
+          {company?.website && <p className="mt-1">{company.website}</p>}
+        </div>
+        <div>
+          <p className="mb-1 font-semibold uppercase tracking-wide" style={{ color: c.muted }}>
+            Contact
+          </p>
+          <p>{company?.phone || '—'}</p>
+          {company?.gstin && <p className="mt-1">GSTIN: {company.gstin}</p>}
+        </div>
+      </div>
     </div>
   )
 }
@@ -113,14 +137,15 @@ function SignatureArea({ signature, company, theme }) {
 export function CoverLetterPreview({ coverLetter, company, asCoverPage = false, theme }) {
   if (!coverLetter) return null
   const t = theme || getTemplateTheme('modern')
+  const message = resolveCoverLetterMessage(coverLetter.message)
 
   const body = (
     <div className="max-w-3xl space-y-3 text-[13px] leading-6" style={{ color: t.colors.text }}>
       {coverLetter.greeting && <p>{coverLetter.greeting}</p>}
       {coverLetter.kindAttention && <p>Kind Attn: {coverLetter.kindAttention}</p>}
       {coverLetter.subject && <p>Subject: {coverLetter.subject}</p>}
-      {coverLetter.message && (
-        <p className="whitespace-pre-line text-justify">{coverLetter.message}</p>
+      {message && (
+        <p className="whitespace-pre-line text-justify">{message}</p>
       )}
       {coverLetter.closing && <p>{coverLetter.closing}</p>}
       {(coverLetter.signOffCompany || coverLetter.signOffTitle) && (
@@ -456,35 +481,41 @@ export function QuotationDocumentPages({
     <div className="space-y-6">
       {/* Page 1 — cover */}
       <PageShell theme={theme} className={`quote-preview-page--cover ${pageClassName}`}>
-        <BrandHeader company={company} theme={theme} />
+        <div className="flex-1">
+          <BrandHeader company={company} theme={theme} />
 
-        <div className="mb-4 mt-5 flex items-start justify-between gap-4 text-[13px]">
-          <p style={{ color: theme.colors.text }}>
-            Quotation No.: {quotationDetails.quotationNumber || '—'}
-          </p>
-          <p style={{ color: theme.colors.text }}>
-            Date: {formatDate(quotationDetails.quotationDate)}
-          </p>
+          <div className="mb-4 mt-5 flex items-start justify-between gap-4 text-[13px]">
+            <p style={{ color: theme.colors.text }}>
+              Quotation No.: {quotationDetails.quotationNumber || '—'}
+            </p>
+            <p style={{ color: theme.colors.text }}>
+              Date: {formatDate(quotationDetails.quotationDate)}
+            </p>
+          </div>
+
+          <CustomerSection customer={customer} title="To" theme={theme} />
+
+          <CoverLetterPreview
+            coverLetter={coverContent}
+            company={company}
+            asCoverPage
+            theme={theme}
+          />
+          <SignatureArea signature={signature} company={company} theme={theme} />
         </div>
-
-        <CustomerSection customer={customer} title="To" theme={theme} />
-
-        <CoverLetterPreview
-          coverLetter={coverContent}
-          company={company}
-          asCoverPage
-          theme={theme}
-        />
-        <SignatureArea signature={signature} company={company} theme={theme} />
+        <ContactFooter company={company} theme={theme} />
       </PageShell>
 
       {/* Page 2 — quotation schedule */}
       <PageShell theme={theme} className={`quote-preview-page--content ${pageClassName}`}>
-        <BrandHeader company={company} theme={theme} />
-        {bodyHeading}
-        <div className="mt-4">
-          <QuotationBodyContent quotationData={quotationData} compact theme={theme} />
+        <div className="flex-1">
+          <BrandHeader company={company} theme={theme} />
+          {bodyHeading}
+          <div className="mt-4">
+            <QuotationBodyContent quotationData={quotationData} compact theme={theme} />
+          </div>
         </div>
+        <ContactFooter company={company} theme={theme} />
       </PageShell>
     </div>
   )
