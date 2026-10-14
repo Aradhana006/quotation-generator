@@ -2,7 +2,6 @@ import {
   formatCurrency,
   formatDate,
   getItemBaseAmount,
-  getItemFinalTotal,
   getQuotationSummary,
   resolveCoverLetterMessage,
 } from '../../../utils/quotationCalculations'
@@ -114,20 +113,20 @@ function LabelValue({ label, value, theme, boldValue = false }) {
 
 function SignatureArea({ signature, company, theme }) {
   return (
-    <div className="mt-6 text-[13px]" style={{ color: theme.colors.text }}>
+    <div className="mt-8 space-y-2 text-[13px]" style={{ color: theme.colors.text }}>
       <p>For {company.name || 'Your Company'}</p>
-      <div className="mt-3">
+      <div className="pt-1">
         {signature?.signatureImage ? (
           <img
             src={signature.signatureImage}
             alt="Signature"
-            className="mb-1 h-12 w-auto object-contain"
+            className="mb-2 h-12 w-auto object-contain"
           />
         ) : (
-          <div className="mb-1 h-10 w-36 border-b" style={{ borderColor: theme.colors.line }} />
+          <div className="mb-2 h-10 w-36 border-b" style={{ borderColor: theme.colors.line }} />
         )}
         <p>{signature?.designation || 'Authorised Signatory'}</p>
-        {signature?.name && <p>{signature.name}</p>}
+        {signature?.name ? <p>{signature.name}</p> : null}
       </div>
     </div>
   )
@@ -138,22 +137,18 @@ export function CoverLetterPreview({ coverLetter, company, asCoverPage = false, 
   if (!coverLetter) return null
   const t = theme || getTemplateTheme('modern')
   const message = resolveCoverLetterMessage(coverLetter.message)
+  // Kind Attn is shown once under To — don't repeat it in the letter body.
+  const showAttnInBody = Boolean(coverLetter.kindAttention) && !asCoverPage
 
   const body = (
     <div className="max-w-3xl space-y-3 text-[13px] leading-6" style={{ color: t.colors.text }}>
       {coverLetter.greeting && <p>{coverLetter.greeting}</p>}
-      {coverLetter.kindAttention && <p>Kind Attn: {coverLetter.kindAttention}</p>}
+      {showAttnInBody && <p>Kind Attn: {coverLetter.kindAttention}</p>}
       {coverLetter.subject && <p>Subject: {coverLetter.subject}</p>}
       {message && (
         <p className="whitespace-pre-line text-justify">{message}</p>
       )}
       {coverLetter.closing && <p>{coverLetter.closing}</p>}
-      {(coverLetter.signOffCompany || coverLetter.signOffTitle) && (
-        <div className="space-y-1 pt-1">
-          {coverLetter.signOffCompany && <p>{coverLetter.signOffCompany}</p>}
-          {coverLetter.signOffTitle && <p>{coverLetter.signOffTitle}</p>}
-        </div>
-      )}
     </div>
   )
 
@@ -209,21 +204,22 @@ export function ItemsTable({ items, currency = 'INR', theme, subject }) {
               Description
             </th>
             <th className="border px-2 py-2 text-center font-bold" style={{ borderColor: c.tableBorder }}>
-              Price (₹)
+              Price (Rs.)
             </th>
             <th className="border px-2 py-2 text-center font-bold" style={{ borderColor: c.tableBorder }}>
               Qty (No)
             </th>
             <th className="border px-2 py-2 text-center font-bold" style={{ borderColor: c.tableBorder }}>
-              Total Price (₹)
+              Total Price (Rs.)
             </th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, index) => {
-            const lineTotal = getItemFinalTotal(item)
             const unitPrice = Number(item.unitPrice) || 0
             const qty = Number(item.quantity) || 0
+            // Total Price = Price × Qty only (GST shown below in summary).
+            const lineBase = getItemBaseAmount(item)
             const specLines = String(item.specification || '')
               .split('\n')
               .map((line) => line.trim().replace(/^[-•*]\s*/, ''))
@@ -263,7 +259,7 @@ export function ItemsTable({ items, currency = 'INR', theme, subject }) {
                   className="border px-2 py-2 text-center font-bold tabular-nums"
                   style={{ borderColor: c.tableBorder }}
                 >
-                  {formatPlainAmount(lineTotal || getItemBaseAmount(item), currency)}
+                  {formatPlainAmount(lineBase, currency)}
                 </td>
               </tr>
             )
@@ -277,32 +273,39 @@ export function ItemsTable({ items, currency = 'INR', theme, subject }) {
 export function PricingBlock({ items, additionalCharges = [], currency = 'INR', theme }) {
   const t = theme || getTemplateTheme('modern')
   const summary = getQuotationSummary(items, additionalCharges)
+  const rows = [
+    ['Subtotal', summary.grossAmount],
+    ['Total Discount', summary.totalDiscount],
+    ['Taxable Amount', summary.subtotalAfterDiscount],
+    ['GST / Tax', summary.taxAmount],
+    ...additionalCharges
+      .filter((charge) => String(charge.name || '').trim() || Number(charge.amount))
+      .map((charge) => [charge.name || 'Charge', Number(charge.amount) || 0]),
+  ]
 
   return (
-    <div className="mb-4 ml-auto w-full max-w-xs text-[13px]" style={{ color: t.colors.text }}>
+    <div
+      className="mb-4 ml-auto w-full max-w-[min(100%,20rem)] text-[13px]"
+      style={{ color: t.colors.text }}
+    >
+      <p className="mb-2 font-bold">Pricing summary</p>
+      <div className="space-y-1">
+        {rows.map(([label, value]) => (
+          <div key={label} className="grid grid-cols-[1fr_7.5rem] gap-2">
+            <span>{label}</span>
+            <span className="text-right tabular-nums">{formatCurrency(value, currency)}</span>
+          </div>
+        ))}
+      </div>
       <div
-        className="flex justify-between border px-3 py-2 font-bold"
+        className="mt-2 grid grid-cols-[1fr_7.5rem] gap-2 border px-2 py-2 font-bold"
         style={{ borderColor: t.colors.tableBorder }}
       >
         <span>Grand Total</span>
-        <span>{formatCurrency(summary.grandTotal, currency)}</span>
+        <span className="text-right tabular-nums">
+          {formatCurrency(summary.grandTotal, currency)}
+        </span>
       </div>
-      {(summary.taxAmount > 0 || summary.totalDiscount > 0) && (
-        <div className="mt-2 space-y-1 px-1 text-[12px]">
-          {summary.totalDiscount > 0 && (
-            <div className="flex justify-between">
-              <span>Discount</span>
-              <span>{formatCurrency(summary.totalDiscount, currency)}</span>
-            </div>
-          )}
-          {summary.taxAmount > 0 && (
-            <div className="flex justify-between">
-              <span>Tax / GST</span>
-              <span>{formatCurrency(summary.taxAmount, currency)}</span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

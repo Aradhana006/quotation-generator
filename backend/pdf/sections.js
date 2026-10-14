@@ -150,23 +150,27 @@ export function drawCustomer(pdf, quotation) {
 
 export function drawCoverLetter(pdf, quotation, { asCoverPage = false } = {}) {
   const cover = quotation.coverLetter || {}
-  const gap = asCoverPage ? 10 : 6
+  const customer = quotation.customer || {}
+  const gap = 8
   const message = resolveCoverMessage(cover.message)
+  const attn = String(cover.kindAttention || '').trim()
+  const contact = String(customer.contactPerson || '').trim()
+  // Avoid repeating Kind Attn when it was already shown under To.
+  const showAttn = attn && attn.toLowerCase() !== contact.toLowerCase()
 
   pdf.font('body').size(BODY_SIZE).fill(pdf.theme.colors.text)
   if (cover.greeting) pdf.wrappedText(cover.greeting, { paddingBottom: gap })
-  if (cover.kindAttention) {
-    pdf.wrappedText(`Kind Attn: ${cover.kindAttention}`, { paddingBottom: gap })
+  if (showAttn) {
+    pdf.wrappedText(`Kind Attn: ${attn}`, { paddingBottom: gap })
   }
   if (cover.subject) {
     pdf.wrappedText(`Subject: ${cover.subject}`, { paddingBottom: gap })
   }
   if (message) {
-    pdf.wrappedText(message, { paddingBottom: gap + 2, lineGap: 3 })
+    pdf.wrappedText(message, { paddingBottom: gap, lineGap: 2 })
   }
   if (cover.closing) pdf.wrappedText(cover.closing, { paddingBottom: gap })
-  if (cover.signOffCompany) pdf.wrappedText(cover.signOffCompany, { paddingBottom: 2 })
-  if (cover.signOffTitle) pdf.wrappedText(cover.signOffTitle, { paddingBottom: 6 })
+  // Sign-off/signature block is drawn separately — do not duplicate titles here.
 }
 
 function formatTableAmount(amount, currency) {
@@ -191,12 +195,13 @@ export function drawItems(pdf, quotation) {
     pdf.wrappedText(subject, { paddingBottom: 8 })
   }
 
+  // Use "Rs." — Helvetica cannot render ₹ (shows as garbage like ¹).
   const columns = [
     { key: 'no', label: 'Sno.', ratio: 0.08, align: 'center' },
     { key: 'description', label: 'Description', ratio: 0.44, align: 'left' },
-    { key: 'price', label: 'Price (₹)', ratio: 0.16, align: 'center' },
+    { key: 'price', label: 'Price (Rs.)', ratio: 0.16, align: 'center' },
     { key: 'qty', label: 'Qty (No)', ratio: 0.12, align: 'center' },
-    { key: 'total', label: 'Total Price (₹)', ratio: 0.2, align: 'center' },
+    { key: 'total', label: 'Total Price (Rs.)', ratio: 0.2, align: 'center' },
   ].map((column) => ({ ...column, width: pdf.width * column.ratio }))
 
   const descriptionWidth = columns.find((column) => column.key === 'description').width - 10
@@ -252,12 +257,17 @@ export function drawItems(pdf, quotation) {
       x += column.width
     })
 
+    // Total Price = Price × Qty only (GST/tax listed below in summary).
+    const qtyNum = Number(item.quantity) || 0
+    const priceNum = Number(item.unitPrice) || 0
+    const lineBase = qtyNum * priceNum
+
     const values = {
       no: `${index + 1}.`,
       description,
       qty: String(item.quantity ?? ''),
       price: formatTableAmount(item.unitPrice, currency),
-      total: formatTableAmount(item.lineTotal ?? 0, currency),
+      total: formatTableAmount(lineBase, currency),
     }
 
     x = pdf.left
@@ -300,47 +310,58 @@ export function drawPricing(pdf, quotation) {
   const summary = quotation.summary || {}
   const currency = quotation.quotationDetails?.currency || 'INR'
   const charges = quotation.additionalCharges || []
+  // Align amount column with table "Total Price (Rs.)" column (last 20%).
+  const totalColWidth = pdf.width * 0.2
+  const valueWidth = totalColWidth
+  const labelWidth = 130
+  const blockLeft = pdf.right - valueWidth - labelWidth
+  const valueLeft = pdf.right - valueWidth
+
   const rows = [
-    ['Subtotal', summary.subtotal],
+    ['Subtotal', summary.grossAmount ?? summary.subtotal],
     ['Total Discount', summary.totalDiscount],
     ['Taxable Amount', summary.taxableAmount ?? summary.subtotalAfterDiscount],
-    ['Tax', summary.taxAmount],
+    ['GST / Tax', summary.taxAmount],
   ]
+
+  const drawAmountRow = (label, value, { bold = false } = {}) => {
+    pdf.ensureSpace(14)
+    pdf.font(bold ? 'heading' : 'body').size(9).fill(pdf.theme.colors.text)
+    pdf.doc.text(label, blockLeft, pdf.y, { width: labelWidth })
+    pdf.doc.text(formatMoney(value, currency), valueLeft, pdf.y, {
+      width: valueWidth,
+      align: 'right',
+    })
+    pdf.y += 13
+  }
 
   if (charges.length) {
     pdf.font('heading').size(BODY_SIZE).fill(pdf.theme.colors.text)
     pdf.wrappedText('Additional charges', { paddingBottom: 4 })
     charges.forEach((charge) => {
-      pdf.font('body').size(9).fill(pdf.theme.colors.text)
-      pdf.ensureSpace(14)
-      pdf.doc.text(charge.name || 'Charge', pdf.left, pdf.y, { width: pdf.width - 120 })
-      pdf.doc.text(formatMoney(charge.amount, currency), pdf.right - 120, pdf.y, {
-        width: 120,
-        align: 'right',
-      })
-      pdf.y += 13
+      drawAmountRow(charge.name || 'Charge', charge.amount)
     })
-    pdf.move(4)
+    pdf.move(6)
   }
 
   pdf.font('heading').size(BODY_SIZE).fill(pdf.theme.colors.text)
   pdf.wrappedText('Pricing summary', { paddingBottom: 4 })
-  const boxWidth = 240
-  const boxLeft = pdf.right - boxWidth
-  pdf.ensureSpace(rows.length * 14 + 26)
+  pdf.ensureSpace(rows.length * 14 + 28)
 
   rows.forEach(([label, value]) => {
-    pdf.font('body').size(9).fill(pdf.theme.colors.text)
-    pdf.doc.text(label, boxLeft, pdf.y, { width: 120 })
-    pdf.doc.text(formatMoney(value, currency), boxLeft + 120, pdf.y, { width: 120, align: 'right' })
-    pdf.y += 13
+    drawAmountRow(label, value)
   })
 
-  pdf.doc.rect(boxLeft, pdf.y, boxWidth, 22).strokeColor(pdf.theme.colors.tableBorder).lineWidth(0.8).stroke()
+  pdf.ensureSpace(24)
+  pdf.doc
+    .rect(blockLeft, pdf.y, labelWidth + valueWidth, 22)
+    .strokeColor(pdf.theme.colors.tableBorder)
+    .lineWidth(0.8)
+    .stroke()
   pdf.font('heading').size(BODY_SIZE).fill(pdf.theme.colors.text)
-  pdf.doc.text('Grand Total', boxLeft + 8, pdf.y + 6, { width: 110 })
-  pdf.doc.text(formatMoney(summary.grandTotal, currency), boxLeft + 110, pdf.y + 6, {
-    width: 122,
+  pdf.doc.text('Grand Total', blockLeft + 6, pdf.y + 6, { width: labelWidth - 6 })
+  pdf.doc.text(formatMoney(summary.grandTotal, currency), valueLeft, pdf.y + 6, {
+    width: valueWidth - 4,
     align: 'right',
   })
   pdf.y += 28
@@ -474,8 +495,7 @@ export function drawBankAndSignature(pdf, quotation) {
 function drawLetterMeta(pdf, quotation) {
   const details = quotation.quotationDetails || {}
   pdf.ensureSpace(18)
-  // Two blank lines after letterhead before meta
-  pdf.move(16)
+  pdf.move(10)
   pdf.font('body').size(BODY_SIZE).fill(pdf.theme.colors.text)
   const number = details.quotationNumber || '—'
   const date = formatPdfDate(details.quotationDate)
@@ -484,7 +504,7 @@ function drawLetterMeta(pdf, quotation) {
     width: pdf.width / 2,
     align: 'right',
   })
-  pdf.y += 18
+  pdf.y += 16
 }
 
 function drawRecipient(pdf, quotation) {
@@ -492,11 +512,11 @@ function drawRecipient(pdf, quotation) {
   pdf.font('body').size(BODY_SIZE).fill(pdf.theme.colors.text)
   pdf.wrappedText('To', { paddingBottom: 2 })
   pdf.wrappedText(customer.companyName || '—', { paddingBottom: 2 })
-  if (customer.address) pdf.wrappedText(customer.address, { paddingBottom: 4, lineGap: 2 })
+  if (customer.address) pdf.wrappedText(customer.address, { paddingBottom: 2, lineGap: 2 })
   if (customer.contactPerson) {
     pdf.wrappedText(`Kind Attn: ${customer.contactPerson}`, { paddingBottom: 10 })
   } else {
-    pdf.move(8)
+    pdf.move(10)
   }
 }
 
